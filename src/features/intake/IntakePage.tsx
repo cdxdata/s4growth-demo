@@ -7,8 +7,11 @@ export function IntakePage() {
 
   return (
     <>
-      <Header title="Monthly technical report" subtitle="September 2026 · Piedmont Community College" />
+      <Header title="Monthly technical report" subtitle={`${summary.monthLabel} · ${summary.organizationName}`} />
       <div className="form-wrap">
+        <button type="button" className="back" onClick={summary.goBack}>
+          {summary.isTrainingProvider ? "← Monthly Submissions" : "← Subawardee"}
+        </button>
         <div className="stepper">
           <div className="step on">
             <i>1</i>Program update
@@ -81,11 +84,13 @@ export function IntakePage() {
           </div>
           <div className="form-foot">
             <button className="btn secondary" onClick={summary.saveDraft}>
-              Save draft and return
+              Save Submission
             </button>
-            <button className="btn primary" onClick={summary.submit} disabled={summary.isSubmitting}>
-              {summary.isSubmitting ? "Submitting…" : "Submit for review →"}
-            </button>
+            {summary.isTrainingProvider ? null : (
+              <button className="btn primary" onClick={summary.submit} disabled={summary.isSubmitting}>
+                {summary.isSubmitting ? "Submitting…" : "Submit for review →"}
+              </button>
+            )}
           </div>
         </Panel>
       </div>

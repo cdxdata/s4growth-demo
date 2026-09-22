@@ -1,9 +1,12 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { useSidebar } from "@/components/layout/useSidebar";
+import { useAppDispatch } from "@/app/hooks";
+import { clearIdentity } from "@/store/authSlice";
 
 export function Sidebar() {
-  const { items, teamName, teamSubtitle, isItemActive } = useSidebar();
+  const { items, teamName, teamSubtitle, canSignOut, isItemActive } = useSidebar();
   const location = useLocation();
+  const dispatch = useAppDispatch();
 
   return (
     <aside className="sidebar">
@@ -29,10 +32,15 @@ export function Sidebar() {
         ))}
       </nav>
       <div className="side-foot">
-        <span className="avatar">NC</span>
+        <span className="avatar">{teamName.slice(0, 2).toUpperCase()}</span>
         {teamName}
         <br />
         <span style={{ paddingLeft: 36 }}>{teamSubtitle}</span>
+        {canSignOut ? (
+          <button className="sign-out" type="button" onClick={() => dispatch(clearIdentity())}>
+            Sign out
+          </button>
+        ) : null}
       </div>
     </aside>
   );

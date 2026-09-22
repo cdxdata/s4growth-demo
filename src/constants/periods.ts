@@ -11,7 +11,7 @@ export type ReportingPeriod = {
   windowLabel: string;
 };
 
-const MONTH_NAMES = [
+export const MONTH_NAMES = [
   "January",
   "February",
   "March",
@@ -126,4 +126,25 @@ export function getPreviousBaselineName(period: ReportingPeriod): string {
 export function getCurrentBaselineName(period: ReportingPeriod): string {
   if (period.kind === "quarterly") return `Q${period.quarter ?? 2}`;
   return MONTH_NAMES[(period.month ?? 1) - 1];
+}
+
+export type QuarterMonth = {
+  year: number;
+  month: number;
+  periodId: string;
+  name: string;
+};
+
+export function getElapsedQuarterMonths(year: number, month: number): QuarterMonth[] {
+  const startMonth = Math.floor((month - 1) / 3) * 3 + 1;
+  const months: QuarterMonth[] = [];
+  for (let current = month; current >= startMonth; current -= 1) {
+    months.push({
+      year,
+      month: current,
+      periodId: `${year}-${String(current).padStart(2, "0")}`,
+      name: MONTH_NAMES[current - 1],
+    });
+  }
+  return months;
 }

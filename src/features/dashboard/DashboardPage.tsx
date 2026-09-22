@@ -83,11 +83,11 @@ export function DashboardPage() {
             <div style={{ padding: 20 }}>
               <div style={{ fontSize: 26, fontWeight: 750, color: "var(--navy)" }}>Days → hours</div>
               <p style={{ lineHeight: 1.65, fontSize: 13, marginTop: 8 }}>
-                Structured intake and visible gaps help the team spend less time finding files and chasing missing
+                Structured monthly submissions and visible gaps help the team spend less time finding files and chasing missing
                 information.
               </p>
               <button className="btn primary" onClick={summary.openIntake} style={{ marginTop: 8 }}>
-                Open structured intake
+                Open Monthly Submissions
               </button>
             </div>
           </Panel>

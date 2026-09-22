@@ -103,7 +103,7 @@ const PERIOD_VIEWS: Record<string, PeriodDashboard> = {
     ],
     priority: [
       { icon: "!", title: "Workbook not yet received", text: "Piedmont Community College · April cycle" },
-      { icon: "!", title: "Narrative fields still blank", text: "Central Carolina Skills · monthly intake" },
+      { icon: "!", title: "Narrative fields still blank", text: "Central Carolina Skills · monthly submissions" },
       { icon: "×", title: "April files still unopened", text: "6 training providers have not started" },
     ],
   },

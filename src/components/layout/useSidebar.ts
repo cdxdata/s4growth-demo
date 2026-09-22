@@ -1,8 +1,9 @@
 import { useAppSelector } from "@/app/hooks";
-import { WORKSPACE_NAV, type NavId } from "@/constants/workspace";
+import { NAV_BY_ROLE } from "@/constants/workspace";
+import { ROLE_LABELS } from "@/constants/roles";
 
 export type SidebarItem = {
-  id: NavId;
+  id: string;
   to: string;
   icon: string;
   label: string;
@@ -13,31 +14,47 @@ export type SidebarSummary = {
   items: SidebarItem[];
   teamName: string;
   teamSubtitle: string;
-  isItemActive: (pathname: string, id: NavId) => boolean;
+  canSignOut: boolean;
+  isItemActive: (pathname: string, id: string) => boolean;
 };
 
 export function useSidebar(): SidebarSummary {
-  const teamName = useAppSelector((state) => state.workspace.teamName);
-  const teamSubtitle = useAppSelector((state) => state.workspace.teamSubtitle);
+  const identity = useAppSelector((state) => state.auth.identity);
+  const fallbackName = useAppSelector((state) => state.workspace.teamName);
+  const fallbackSubtitle = useAppSelector((state) => state.workspace.teamSubtitle);
+  const role = identity?.role ?? "project-manager";
+  const items = NAV_BY_ROLE[role];
 
   return {
-    items: WORKSPACE_NAV.map((item) => ({
+    items: items.map((item) => ({
       ...item,
       end: item.to === "/",
     })),
-    teamName,
-    teamSubtitle,
+    teamName: identity
+      ? identity.kind === "representative"
+        ? identity.name
+        : identity.organizationName
+      : fallbackName,
+    teamSubtitle: identity
+      ? identity.kind === "representative"
+        ? `${ROLE_LABELS[identity.role]} representative`
+        : ROLE_LABELS[identity.role]
+      : fallbackSubtitle,
+    canSignOut: Boolean(identity),
     isItemActive(pathname, id) {
-      const match: Record<NavId, boolean> = {
-        dashboard: pathname === "/",
-        provider: pathname.startsWith("/providers"),
-        intake: pathname.startsWith("/intake"),
-        participants: pathname.startsWith("/participants"),
-        review: pathname.startsWith("/review"),
-        nudges: pathname.startsWith("/nudges"),
-        ppr: pathname.startsWith("/quarterly-draft"),
-      };
-      return match[id];
+      if (id === "dashboard") return pathname === "/";
+      if (id === "provider") return pathname.startsWith("/providers");
+      if (id === "intake") return pathname.startsWith("/intake") || pathname.startsWith("/submissions");
+      if (id === "participants") return pathname.startsWith("/participants");
+      if (id === "review") return pathname.startsWith("/review");
+      if (id === "nudges") return pathname.startsWith("/nudges");
+      if (id === "ppr") return pathname.startsWith("/quarterly-draft");
+      if (id === "representatives") return pathname.startsWith("/representatives");
+      if (id === "project-manager") return pathname.includes("/project-manager");
+      if (id === "training-provider") return pathname.includes("/training-provider");
+      if (id === "backbone") return pathname.includes("/admin/roles/backbone") || pathname === "/admin/roles/backbone";
+      if (id === "employment-liaison") return pathname.includes("/employment-liaison");
+      return false;
     },
   };
 }

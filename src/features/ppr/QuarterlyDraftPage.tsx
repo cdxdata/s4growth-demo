@@ -42,7 +42,7 @@ export function QuarterlyDraftPage() {
           <h2>Success story</h2>
           <div className="quote">{draft.quote}</div>
           <p>
-            Participant stories and supporting narratives can be gathered through the structured monthly intake, then
+            Participant stories and supporting narratives can be gathered through the structured monthly submissions, then
             made available for human editing in the quarterly report.
           </p>
           <div
@@ -56,7 +56,7 @@ export function QuarterlyDraftPage() {
             }}
           >
             <span style={{ fontSize: 11, color: "var(--muted)" }}>
-              Draft status · synthetic data · {draft.fromIntake ? "updated from monthly intake" : "updated today"}
+              Draft status · synthetic data · {draft.fromIntake ? "updated from monthly submissions" : "updated today"}
             </span>
             <button className="btn secondary" onClick={summary.print}>
               Print preview

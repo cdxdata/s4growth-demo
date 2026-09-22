@@ -34,7 +34,7 @@ export function ProviderPage() {
           </div>
           <div className="tabs">
             <button className="active">Overview</button>
-            <button onClick={summary.openIntake}>Monthly intake</button>
+            <button onClick={summary.openIntake}>Monthly Submissions</button>
             <button onClick={summary.openParticipants}>Participant data</button>
             <button onClick={summary.openReview}>Review history</button>
           </div>
@@ -44,7 +44,7 @@ export function ProviderPage() {
                 <Panel.Title title="September reporting checklist" subtitle={summary.checklistSubtitle} />
                 {summary.canCompleteIntake ? (
                   <button className="btn primary" onClick={summary.openIntake}>
-                    Complete intake
+                    Complete submission
                   </button>
                 ) : null}
               </Panel.Head>

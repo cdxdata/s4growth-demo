@@ -25,7 +25,7 @@ npm run preview
 ## Demo story
 
 1. Start at the reporting dashboard and open Piedmont Community College.
-2. Open **Monthly intake**, complete the two required narrative fields, and submit.
+2. Open **Monthly Submissions**, complete the two required narrative fields, and submit.
 3. Show the updated review queue and resolved completion-total flag.
 4. Open **Nudges** and log a simulated reminder.
 5. Open **Quarterly draft** to show the structured update available in the reporting draft.

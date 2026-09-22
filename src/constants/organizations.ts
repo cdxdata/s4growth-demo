@@ -80,7 +80,7 @@ export const TRAINING_PROVIDERS: TrainingProviderOrg[] = [
   {
     id: 5,
     name: "Fayetteville Career Academy",
-    backbone: null,
+    backbone: "Capital Area Workforce Development",
     code: "TP-011",
     program: "Logistics",
     region: "Sandhills region",
@@ -124,7 +124,7 @@ export const TRAINING_PROVIDERS: TrainingProviderOrg[] = [
   {
     id: 9,
     name: "Charlotte Advanced Manufacturing Hub",
-    backbone: null,
+    backbone: "Capital Area Workforce Development",
     code: "TP-019",
     program: "CNC Machining",
     region: "Metro region",
@@ -168,7 +168,7 @@ export const TRAINING_PROVIDERS: TrainingProviderOrg[] = [
   {
     id: 13,
     name: "High Point Furniture Skills",
-    backbone: null,
+    backbone: "Western NC Skills Partnership",
     code: "TP-012",
     program: "Production Operations",
     region: "Triad region",

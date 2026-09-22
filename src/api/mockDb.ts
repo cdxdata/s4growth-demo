@@ -439,7 +439,7 @@ export const mockDb = {
         : "Across the network, training providers continued to expand regional workforce pathways, deepen employer relationships, and support participant advancement.",
       challenges: fromIntake
         ? intake.challenges
-        : "Reporting completeness remains uneven across providers. The team will use structured monthly intake and targeted follow-up to identify gaps earlier in the reporting cycle.",
+        : "Reporting completeness remains uneven across providers. The team will use structured monthly submissions and targeted follow-up to identify gaps earlier in the reporting cycle.",
       plan: fromIntake
         ? intake.plan
         : "Continue monthly review, prioritize incomplete submissions, and confirm participant-level outcome totals before quarterly consolidation.",
