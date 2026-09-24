@@ -60,7 +60,7 @@ export function LoginPage() {
       </section>
       <aside className="login-hero">
         <img
-          src="/login-hero.jpg"
+          src={`${import.meta.env.BASE_URL}login-hero.jpg`}
           alt="The Blue Ridge Parkway climbing around Grandfather Mountain in Avery County, North Carolina"
         />
         <div className="login-hero-copy">

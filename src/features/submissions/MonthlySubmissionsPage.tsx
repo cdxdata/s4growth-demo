@@ -51,13 +51,22 @@ export function MonthlySubmissionsPage() {
                           <b>{document.label}</b>
                           <DocumentStatusBadge state={document.state} />
                         </div>
-                        <button
-                          type="button"
-                          className="btn secondary"
-                          onClick={() => summary.editDocument(row.periodId, document.kind)}
-                        >
-                          Edit
-                        </button>
+                        <div className="document-actions">
+                          <button
+                            type="button"
+                            className="btn secondary"
+                            onClick={() => summary.reviewDocument(row.periodId, document.kind)}
+                          >
+                            See Review
+                          </button>
+                          <button
+                            type="button"
+                            className="btn secondary"
+                            onClick={() => summary.editDocument(row.periodId, document.kind)}
+                          >
+                            Edit
+                          </button>
+                        </div>
                       </li>
                     ))}
                   </ul>

@@ -31,6 +31,9 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+const DIRECTORY_KEY = "s4g-directory";
+const DIRECTORY_VERSION = 1;
+
 function createInitialState(): DirectoryState {
   return {
     entities: createDirectoryEntities(),
@@ -40,7 +43,31 @@ function createInitialState(): DirectoryState {
   };
 }
 
-let state = createInitialState();
+function persistDirectory(next: DirectoryState) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(DIRECTORY_KEY, JSON.stringify({ version: DIRECTORY_VERSION, ...next }));
+}
+
+function loadDirectory(): DirectoryState {
+  const seeded = createInitialState();
+  if (typeof window === "undefined") return seeded;
+  try {
+    const raw = window.localStorage.getItem(DIRECTORY_KEY);
+    if (!raw) return seeded;
+    const parsed = JSON.parse(raw) as DirectoryState & { version?: number };
+    if (parsed.version !== DIRECTORY_VERSION || !parsed.entities) return seeded;
+    return {
+      entities: parsed.entities,
+      representatives: parsed.representatives ?? [],
+      magicLinks: parsed.magicLinks ?? [],
+      nextEntitySeq: parsed.nextEntitySeq ?? 100,
+    };
+  } catch {
+    return seeded;
+  }
+}
+
+let state = loadDirectory();
 
 function token(): string {
   return `s4g-${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
@@ -194,6 +221,7 @@ export const directoryDb = {
       programs: role === "training-provider" ? ["New program"] : undefined,
     };
     state.entities.push(entity);
+    persistDirectory(state);
     return clone(entity);
   },
 
@@ -205,6 +233,7 @@ export const directoryDb = {
     }
     state.entities = state.entities.filter((item) => item.id !== id);
     state.representatives = state.representatives.filter((item) => item.entityId !== id);
+    persistDirectory(state);
     return { ok: true };
   },
 
@@ -228,6 +257,7 @@ export const directoryDb = {
       email: normalized,
     };
     state.representatives.push(representative);
+    persistDirectory(state);
     return clone(representative);
   },
 
@@ -235,6 +265,7 @@ export const directoryDb = {
     const exists = state.representatives.some((item) => item.id === id);
     if (!exists) return { error: "That representative was not found." };
     state.representatives = state.representatives.filter((item) => item.id !== id);
+    persistDirectory(state);
     return { ok: true };
   },
 
@@ -280,5 +311,21 @@ export const directoryDb = {
       email: entity.email,
       participantsEmployed: entity.employedCount ?? 0,
     });
+  },
+
+  getReviewRecipients(providerId: number): { providerName: string; recipients: string[] } {
+    const entity = state.entities.find((item) => item.role === "training-provider" && item.orgId === providerId);
+    const providerName = entity?.name ?? TRAINING_PROVIDERS.find((item) => item.id === providerId)?.name ?? "Training provider";
+    const backboneName = TRAINING_PROVIDERS.find((item) => item.id === providerId)?.backbone;
+    const backbone = backboneName
+      ? state.entities.find((item) => item.role === "backbone" && item.name === backboneName)
+      : undefined;
+    const emails = new Set<string>();
+    if (entity?.email) emails.add(entity.email);
+    if (entity) {
+      for (const rep of repsFor(entity.id)) emails.add(rep.email);
+    }
+    if (backbone?.email) emails.add(backbone.email);
+    return { providerName, recipients: Array.from(emails) };
   },
 };

@@ -16,14 +16,13 @@ export function TrainingProviderHomePage() {
           <Stat
             label="Participants in training"
             value={summary.participantsInTraining}
-            note="Currently enrolled"
+            note="Completed Training is No"
           />
           <div className="stat">
-            <div className="label">Submission status</div>
+            <div className="label">{summary.monthName} Submission Status</div>
             <div style={{ marginTop: 10 }}>
               {summary.submissionStatus ? <SubmissionBadge status={summary.submissionStatus} /> : "—"}
             </div>
-            <div className="delta">Current reporting cycle</div>
           </div>
           <Stat
             label="Training programs"

@@ -1,4 +1,5 @@
 import { Header } from "@/components/layout/Header";
+import { FieldMarks } from "@/components/ui/FieldMarks";
 import { Panel } from "@/components/ui/Panel";
 import { useInvoice } from "@/features/submissions/useInvoice";
 
@@ -24,17 +25,22 @@ export function InvoicePage() {
             <div className="field">
               <label>
                 Invoice number <span className="req">*</span>
+                {summary.showMarks ? <FieldMarks mark={summary.fieldMarks["invoice.invoiceNumber"]} /> : null}
               </label>
               <input name="invoiceNumber" value={summary.form.invoiceNumber} onChange={summary.change} />
             </div>
             <div className="field">
               <label>
                 Amount (USD) <span className="req">*</span>
+                {summary.showMarks ? <FieldMarks mark={summary.fieldMarks["invoice.amount"]} /> : null}
               </label>
               <input name="amount" type="number" min={0} step="0.01" inputMode="decimal" value={summary.form.amount} onChange={summary.change} />
             </div>
             <div className="field full">
-              <label>Notes</label>
+              <label>
+                Notes
+                {summary.showMarks ? <FieldMarks mark={summary.fieldMarks["invoice.notes"]} /> : null}
+              </label>
               <textarea
                 name="notes"
                 placeholder="Optional description of charges or supporting files."

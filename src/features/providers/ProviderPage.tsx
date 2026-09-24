@@ -5,6 +5,7 @@ import { Metric } from "@/components/ui/Metric";
 import { Panel } from "@/components/ui/Panel";
 import { QueryState } from "@/components/ui/QueryState";
 import { SubmissionBadge } from "@/components/ui/SubmissionBadge";
+import { ProviderMonthlyReview } from "@/features/providers/ProviderMonthlyReview";
 import { useProvider } from "@/features/providers/useProvider";
 
 export function ProviderPage() {
@@ -33,11 +34,19 @@ export function ProviderPage() {
             </div>
           </div>
           <div className="tabs">
-            <button className="active">Overview</button>
-            <button onClick={summary.openIntake}>Monthly Submissions</button>
+            <button className={summary.tab === "overview" ? "active" : undefined} onClick={() => summary.openTab("overview")}>
+              Overview
+            </button>
+            <button className={summary.tab === "monthly" ? "active" : undefined} onClick={() => summary.openTab("monthly")}>
+              Monthly Submissions
+            </button>
             <button onClick={summary.openParticipants}>Participant data</button>
             <button onClick={summary.openReview}>Review history</button>
           </div>
+          {summary.tab === "monthly" ? (
+            <ProviderMonthlyReview />
+          ) : (
+            <>
           <div className="grid two">
             <Panel>
               <Panel.Head>
@@ -94,6 +103,8 @@ export function ProviderPage() {
               </div>
             </Panel>
           </div>
+            </>
+          )}
         </>
       ) : (
         <div className="empty">That subawardee is not in this demo workspace.</div>

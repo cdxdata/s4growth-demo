@@ -1,5 +1,6 @@
 import { useState, type ChangeEvent, type ReactNode } from "react";
 import { Header } from "@/components/layout/Header";
+import { FieldMarks } from "@/components/ui/FieldMarks";
 import { Panel } from "@/components/ui/Panel";
 import { useIntake } from "@/features/intake/useIntake";
 import { ADD_KEYWORD, keywordOptions } from "@/lib/technicalReport";
@@ -31,7 +32,7 @@ export function IntakePage() {
           </button>
         </Section>
 
-        <Section num="02" title="Challenges this month" invalid={challengeInvalid}>
+        <Section num="02" title="Challenges this month" invalid={challengeInvalid} mark={summary.showMarks ? summary.fieldMarks["technical.challenges"] : undefined}>
           {summary.form.challenges.map((row, index) => (
             <KeywordRowFields
               key={`challenge-${index}`}
@@ -50,7 +51,7 @@ export function IntakePage() {
           </button>
         </Section>
 
-        <Section num="03" title="Plan to address the challenges listed in 02" invalid={planInvalid}>
+        <Section num="03" title="Plan to address the challenges listed in 02" invalid={planInvalid} mark={summary.showMarks ? summary.fieldMarks["technical.plans"] : undefined}>
           <div className="tech-plan-table-wrap">
             <table className="tech-plan-table">
               <thead>
@@ -98,7 +99,7 @@ export function IntakePage() {
           </button>
         </Section>
 
-        <Section num="04" title="This month's achievement" invalid={achievementInvalid}>
+        <Section num="04" title="This month's achievement" invalid={achievementInvalid} mark={summary.showMarks ? summary.fieldMarks["technical.achievements"] : undefined}>
           {summary.form.achievements.map((row, index) => (
             <KeywordRowFields
               key={`achievement-${index}`}
@@ -116,7 +117,7 @@ export function IntakePage() {
           </button>
         </Section>
 
-        <Section num="05" title="Participant testimonial available?" invalid={testimonialInvalid}>
+        <Section num="05" title="Participant testimonial available?" invalid={testimonialInvalid} mark={summary.showMarks ? summary.fieldMarks["technical.testimonial"] : undefined}>
           <div className="tech-keyword-row">
             <div className="field">
               <label>Available</label>
@@ -160,7 +161,7 @@ export function IntakePage() {
           </div>
         </Section>
 
-        <Section num="06" title="Photo/video/article link" invalid={mediaInvalid}>
+        <Section num="06" title="Photo/video/article link" invalid={mediaInvalid} mark={summary.showMarks ? summary.fieldMarks["technical.mediaLink"] : undefined}>
           <div className="tech-keyword-row">
             <div className="field">
               <label>Available</label>
@@ -213,17 +214,20 @@ function Section({
   title,
   children,
   invalid,
+  mark,
 }: {
   num: string;
   title?: string;
   children: ReactNode;
   invalid?: boolean;
+  mark?: "good" | "bad";
 }) {
   return (
-    <Panel className={`eda-form-card tech-section${invalid ? " is-invalid" : ""}`}>
+    <Panel className={`eda-form-card tech-section${invalid ? " is-invalid" : ""}${mark === "bad" ? " is-flagged" : ""}`}>
       <div className="section-title">
         <div className="num">{num}</div>
         {title ? <h2>{title}</h2> : null}
+        {mark ? <FieldMarks mark={mark} /> : null}
       </div>
       {children}
     </Panel>

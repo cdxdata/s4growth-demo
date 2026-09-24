@@ -94,6 +94,7 @@ export type TestimonialFile = {
   name: string;
   size: number;
   type: string;
+  dataUrl?: string;
 };
 
 export type TestimonialSection = {

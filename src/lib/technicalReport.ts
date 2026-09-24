@@ -70,8 +70,29 @@ export function defaultIntakeDraft(): IntakeDraft {
   };
 }
 
-export function fileFromBrowser(file: File): TestimonialFile {
-  return { name: file.name, size: file.size, type: file.type };
+export function fileFromBrowser(file: File, dataUrl?: string): TestimonialFile {
+  return { name: file.name, size: file.size, type: file.type, dataUrl };
+}
+
+export function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(reader.error ?? new Error("Could not read the file."));
+    reader.readAsDataURL(file);
+  });
+}
+
+export function attachmentHref(file: TestimonialFile): string {
+  if (file.dataUrl) return file.dataUrl;
+  const payload = btoa(`Demo attachment: ${file.name}`);
+  return `data:${file.type || "text/plain"};base64,${payload}`;
+}
+
+export function formatFileSize(size: number): string {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export function keywordOptions(keywords: string[]): string[] {
@@ -231,7 +252,12 @@ export function filledTechnicalDraft(): IntakeDraft {
     testimonial: {
       available: "Yes",
       detail: "",
-      files: [{ name: "EDA-success-story-july.pdf", size: 182400, type: "application/pdf" }],
+      files: [{
+        name: "EDA-success-story-july.pdf",
+        size: 182400,
+        type: "application/pdf",
+        dataUrl: `data:text/plain;base64,${btoa("Demo attachment: EDA-success-story-july.pdf")}`,
+      }],
     },
     mediaLink: {
       available: "Yes",

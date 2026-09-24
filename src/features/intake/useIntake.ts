@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { reportingApi } from "@/api/client";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { DEFAULT_PERIOD_ID, getPeriodById } from "@/constants/periods";
+import { resolveProviderId } from "@/lib/providerScope";
 import { getPeriodSubmission, updateTechnical } from "@/store/submissionsSlice";
 import { markSubmitted, updateDraft } from "@/store/intakeSlice";
 import { showToast } from "@/store/uiSlice";
@@ -18,6 +19,7 @@ import {
   emptyMediaLinkRow,
   emptyTestimonial,
   fileFromBrowser,
+  readFileAsDataUrl,
 } from "@/lib/technicalReport";
 import type { AchievementRow, ChallengeRow, IntakeDraft, MediaLinkRow, PlanRow, TestimonialSection } from "@/types/domain";
 
@@ -39,12 +41,12 @@ export function useIntake() {
   const periodId = resolvePeriodId(periodParam, selectedPeriodId);
   const period = getPeriodById(periodId);
   const role = useAppSelector((state) => state.auth.identity?.role);
-  const organizationName = useAppSelector((state) =>
-    state.auth.identity?.role === "training-provider"
-      ? (state.auth.identity.organizationName ?? "Piedmont Community College")
-      : "Piedmont Community College",
-  );
-  const record = useAppSelector((state) => getPeriodSubmission(state.submissions, periodId));
+  const identity = useAppSelector((state) => state.auth.identity);
+  const organizationName = identity?.role === "training-provider"
+    ? (identity.organizationName ?? "Piedmont Community College")
+    : "Piedmont Community College";
+  const providerId = resolveProviderId(identity);
+  const record = useAppSelector((state) => getPeriodSubmission(state.submissions, periodId, providerId));
   const intakeDraft = useAppSelector((state) => state.intake.draft);
   const isTrainingProvider = role === "training-provider";
   const storedForm = isTrainingProvider || periodParam ? record.technical : intakeDraft;
@@ -74,7 +76,7 @@ export function useIntake() {
   }, [form, record.eda]);
 
   function persist(patch: Partial<IntakeDraft>) {
-    dispatch(updateTechnical({ periodId, patch }));
+    dispatch(updateTechnical({ providerId, periodId, patch }));
     if (!isTrainingProvider && !periodParam) dispatch(updateDraft(patch));
   }
 
@@ -92,6 +94,8 @@ export function useIntake() {
     organizationName,
     periodId,
     edaFilled,
+    showMarks: record.review["technical-report"].score === "Flagged",
+    fieldMarks: record.review["technical-report"].fieldMarks,
     goEda() {
       navigate(edaFilled ? `/submissions/${periodId}/eda/review` : `/submissions/${periodId}/eda/training-provider`);
     },
@@ -183,8 +187,8 @@ export function useIntake() {
       }
       replace("testimonial", { ...form.testimonial, ...patch });
     },
-    attachTestimonial(index: number, file: File | undefined) {
-      const next = file ? fileFromBrowser(file) : null;
+    async attachTestimonial(index: number, file: File | undefined) {
+      const next = file ? fileFromBrowser(file, await readFileAsDataUrl(file)) : null;
       const files = form.testimonial.files.map((item, itemIndex) => (itemIndex === index ? next : item));
       replace("testimonial", { ...form.testimonial, files });
     },

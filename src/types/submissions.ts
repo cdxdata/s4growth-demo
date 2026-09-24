@@ -1,4 +1,4 @@
-import type { IntakeDraft } from "@/types/domain";
+import type { IntakeDraft, SubmissionStatus } from "@/types/domain";
 
 export const MONTHLY_PACKAGE_STATUSES = ["Action Needed", "Submitted", "Approved"] as const;
 export type MonthlyPackageStatus = (typeof MONTHLY_PACKAGE_STATUSES)[number];
@@ -162,12 +162,66 @@ export type EdaSurveyDraft = {
   employmentStatus: EmploymentStatusProgram[];
 };
 
+export type FormScore = "Passed" | "Flagged";
+export type FieldMark = "good" | "bad";
+export type ReviewFormId = SubmissionDocumentKind;
+
+export type FormReviewState = {
+  score: FormScore | null;
+  fieldMarks: Record<string, FieldMark>;
+};
+
+export type EdaFormReviewState = FormReviewState & {
+  sections: Record<string, FormReviewState>;
+};
+
+export type PackageReview = {
+  "technical-report": FormReviewState;
+  "eda-survey": EdaFormReviewState;
+  invoice: FormReviewState;
+};
+
+export type ReviewAttachment = {
+  name: string;
+  href: string;
+  sizeLabel?: string;
+};
+
+export type ReviewField = {
+  id: string;
+  label: string;
+  value: string;
+  sectionId?: string;
+  sectionTitle?: string;
+  link?: string;
+  attachments?: ReviewAttachment[];
+};
+
+export type ProviderPeriodStatus = {
+  status: SubmissionStatus;
+  statusChangedOn: string | null;
+  completedOn: string | null;
+};
+
+export type ReviewMail = {
+  id: string;
+  periodId: string;
+  providerId: number;
+  recipients: string[];
+  subject: string;
+  body: string;
+  sentOn: string;
+  status: SubmissionStatus;
+};
+
 export type PeriodSubmissionRecord = {
   status: MonthlyPackageStatus;
   technical: IntakeDraft;
   eda: EdaSurveyDraft;
   invoice: InvoiceDraft;
   edaMaxStep: number;
+  review: PackageReview;
+  reviewPublished?: string | null;
 };
 
 export type SubmissionDocument = {
