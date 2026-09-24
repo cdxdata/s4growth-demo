@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  base: '/', // Use '/' if deploying to a user page (username.github.io), or '/repo-name/' if it is a project repository
+  base: '/s4growth-demo/',
   plugins: [react()],
   resolve: {
     alias: {
