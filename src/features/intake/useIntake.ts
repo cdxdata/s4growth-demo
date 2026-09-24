@@ -1,5 +1,5 @@
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, type ChangeEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { reportingApi } from "@/api/client";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
@@ -7,20 +7,21 @@ import { DEFAULT_PERIOD_ID, getPeriodById } from "@/constants/periods";
 import { getPeriodSubmission, updateTechnical } from "@/store/submissionsSlice";
 import { markSubmitted, updateDraft } from "@/store/intakeSlice";
 import { showToast } from "@/store/uiSlice";
-import type { IntakeDraft } from "@/types/domain";
+import { edaFillState, isTechnicalValid } from "@/lib/submissionDocuments";
+import {
+  ADD_KEYWORD,
+  NONE_ACHIEVEMENT,
+  NONE_CHALLENGE,
+  achievementTextForKeyword,
+  addCustomKeyword,
+  applyTechnicalDefaults,
+  emptyMediaLinkRow,
+  emptyTestimonial,
+  fileFromBrowser,
+} from "@/lib/technicalReport";
+import type { AchievementRow, ChallengeRow, IntakeDraft, MediaLinkRow, PlanRow, TestimonialSection } from "@/types/domain";
 
-export type IntakeSummary = {
-  form: IntakeDraft;
-  error: string;
-  isSubmitting: boolean;
-  isTrainingProvider: boolean;
-  monthLabel: string;
-  organizationName: string;
-  change: (event: ChangeEvent<HTMLTextAreaElement>) => void;
-  saveDraft: () => void;
-  submit: () => void;
-  goBack: () => void;
-};
+export type IntakeSummary = ReturnType<typeof useIntake>;
 
 function resolvePeriodId(paramId: string | undefined, selectedId: string): string {
   if (paramId) return paramId;
@@ -29,7 +30,7 @@ function resolvePeriodId(paramId: string | undefined, selectedId: string): strin
   return DEFAULT_PERIOD_ID;
 }
 
-export function useIntake(): IntakeSummary {
+export function useIntake() {
   const { periodId: periodParam } = useParams();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -43,11 +44,18 @@ export function useIntake(): IntakeSummary {
       ? (state.auth.identity.organizationName ?? "Piedmont Community College")
       : "Piedmont Community College",
   );
-  const stored = useAppSelector((state) => getPeriodSubmission(state.submissions, periodId).technical);
+  const record = useAppSelector((state) => getPeriodSubmission(state.submissions, periodId));
   const intakeDraft = useAppSelector((state) => state.intake.draft);
   const isTrainingProvider = role === "training-provider";
-  const form = isTrainingProvider || periodParam ? stored : intakeDraft;
+  const storedForm = isTrainingProvider || periodParam ? record.technical : intakeDraft;
+  const form = {
+    ...storedForm,
+    testimonial: storedForm.testimonial ?? emptyTestimonial(),
+    mediaLink: storedForm.mediaLink ?? emptyMediaLinkRow(),
+  };
+  const edaFilled = edaFillState(record.eda) === "filled";
   const [error, setError] = useState("");
+  const [showErrors, setShowErrors] = useState(false);
 
   const mutation = useMutation({
     mutationFn: reportingApi.submitIntake,
@@ -59,28 +67,157 @@ export function useIntake(): IntakeSummary {
     },
   });
 
+  useEffect(() => {
+    const patch = applyTechnicalDefaults(form, record.eda);
+    if (Object.keys(patch).length === 0) return;
+    persist(patch);
+  }, [form, record.eda]);
+
+  function persist(patch: Partial<IntakeDraft>) {
+    dispatch(updateTechnical({ periodId, patch }));
+    if (!isTrainingProvider && !periodParam) dispatch(updateDraft(patch));
+  }
+
+  function replace<K extends keyof IntakeDraft>(key: K, value: IntakeDraft[K]) {
+    persist({ [key]: value } as Partial<IntakeDraft>);
+  }
+
   return {
     form,
     error,
+    showErrors,
     isSubmitting: mutation.isPending,
     isTrainingProvider,
     monthLabel: period.windowLabel,
     organizationName,
-    change(event) {
-      const patch = { [event.target.name]: event.target.value };
-      dispatch(updateTechnical({ periodId, patch }));
-      if (!isTrainingProvider) dispatch(updateDraft(patch));
+    periodId,
+    edaFilled,
+    goEda() {
+      navigate(edaFilled ? `/submissions/${periodId}/eda/review` : `/submissions/${periodId}/eda/training-provider`);
+    },
+    updateChallenge(index: number, patch: Partial<ChallengeRow>) {
+      const next = form.challenges.map((row, item) => {
+        if (item !== index) return row;
+        const keyword = patch.keyword ?? row.keyword;
+        if (keyword === ADD_KEYWORD) return { ...row, ...patch };
+        if (keyword === NONE_CHALLENGE) return { keyword, detail: "None" };
+        const detail = patch.detail ?? (keyword !== row.keyword && row.detail === "None" ? "" : row.detail);
+        return { keyword, detail };
+      });
+      replace("challenges", next);
+    },
+    addChallenge() {
+      const keyword = form.challengeKeywords.find((item) => item !== NONE_CHALLENGE) ?? NONE_CHALLENGE;
+      replace("challenges", [...form.challenges, { keyword, detail: keyword === NONE_CHALLENGE ? "None" : "" }]);
+    },
+    removeChallenge(index: number) {
+      if (form.challenges.length <= 1) return;
+      replace("challenges", form.challenges.filter((_, item) => item !== index));
+    },
+    addChallengeKeyword(index: number, value: string) {
+      const keywords = addCustomKeyword(form.challengeKeywords, value, NONE_CHALLENGE);
+      persist({
+        challengeKeywords: keywords,
+        challenges: form.challenges.map((row, item) => (item === index ? { keyword: value.trim(), detail: row.detail === "None" ? "" : row.detail } : row)),
+      });
+    },
+    updatePlan(index: number, patch: Partial<PlanRow>) {
+      replace(
+        "plans",
+        form.plans.map((row, item) => {
+          if (item !== index) return row;
+          const next = { ...row, ...patch };
+          if (patch.plan !== undefined && patch.plan.trim() === "None") {
+            next.potentialGain = "None";
+          } else if (patch.plan !== undefined && row.plan.trim() === "None" && row.potentialGain.trim() === "None") {
+            next.potentialGain = "";
+          }
+          return next;
+        }),
+      );
+    },
+    addPlan() {
+      replace("plans", [...form.plans, { plan: "", potentialGain: "" }]);
+    },
+    removePlan(index: number) {
+      if (form.plans.length <= 1) return;
+      replace("plans", form.plans.filter((_, item) => item !== index));
+    },
+    updateAchievement(index: number, patch: Partial<AchievementRow>) {
+      const next = form.achievements.map((row, item) => {
+        if (item !== index) return row;
+        const keyword = patch.keyword ?? row.keyword;
+        if (keyword === ADD_KEYWORD) return { ...row, ...patch };
+        if (keyword === NONE_ACHIEVEMENT) return { keyword, detail: "None" };
+        if (patch.detail !== undefined) return { keyword, detail: patch.detail };
+        const generated = achievementTextForKeyword(keyword, record.eda);
+        const detail = keyword !== row.keyword ? generated || (row.detail === "None" ? "" : row.detail) : row.detail;
+        return { keyword, detail };
+      });
+      replace("achievements", next);
+    },
+    addAchievement() {
+      const keyword = form.achievementKeywords.find((item) => item !== NONE_ACHIEVEMENT) ?? NONE_ACHIEVEMENT;
+      const detail = keyword === NONE_ACHIEVEMENT ? "None" : achievementTextForKeyword(keyword, record.eda);
+      replace("achievements", [...form.achievements, { keyword, detail }]);
+    },
+    removeAchievement(index: number) {
+      if (form.achievements.length <= 1) return;
+      replace("achievements", form.achievements.filter((_, item) => item !== index));
+    },
+    addAchievementKeyword(index: number, value: string) {
+      const keywords = addCustomKeyword(form.achievementKeywords, value, NONE_ACHIEVEMENT);
+      persist({
+        achievementKeywords: keywords,
+        achievements: form.achievements.map((row, item) => (item === index ? { keyword: value.trim(), detail: row.detail === "None" ? "" : row.detail } : row)),
+      });
+    },
+    updateTestimonial(patch: Partial<TestimonialSection>) {
+      if (patch.available === "None") {
+        replace("testimonial", { available: "None", detail: "None", files: [] });
+        return;
+      }
+      if (patch.available === "Yes") {
+        replace("testimonial", { available: "Yes", detail: "", files: form.testimonial.files.length ? form.testimonial.files : [null] });
+        return;
+      }
+      replace("testimonial", { ...form.testimonial, ...patch });
+    },
+    attachTestimonial(index: number, file: File | undefined) {
+      const next = file ? fileFromBrowser(file) : null;
+      const files = form.testimonial.files.map((item, itemIndex) => (itemIndex === index ? next : item));
+      replace("testimonial", { ...form.testimonial, files });
+    },
+    addTestimonialFile() {
+      replace("testimonial", { ...form.testimonial, available: "Yes", detail: "", files: [...form.testimonial.files, null] });
+    },
+    removeTestimonialFile(index: number) {
+      if (form.testimonial.files.length <= 1) return;
+      replace("testimonial", { ...form.testimonial, files: form.testimonial.files.filter((_, item) => item !== index) });
+    },
+    updateMediaLink(patch: Partial<MediaLinkRow>) {
+      if (patch.available === "None") {
+        replace("mediaLink", { available: "None", detail: "None" });
+        return;
+      }
+      if (patch.available === "Yes") {
+        replace("mediaLink", { available: "Yes", detail: form.mediaLink.detail === "None" ? "" : form.mediaLink.detail });
+        return;
+      }
+      replace("mediaLink", { ...form.mediaLink, ...patch });
     },
     saveDraft() {
       dispatch(showToast("Technical report saved."));
       navigate(isTrainingProvider ? "/submissions" : "/providers/1");
     },
     submit() {
-      if (!form.achievements || !form.challenges || !form.plan) {
-        setError("Please complete the required narrative fields before submitting.");
+      if (!isTechnicalValid(form)) {
+        setShowErrors(true);
+        setError("Complete the required technical report sections before submitting.");
         return;
       }
       setError("");
+      setShowErrors(false);
       if (isTrainingProvider) {
         dispatch(showToast("Technical report saved."));
         navigate("/submissions");

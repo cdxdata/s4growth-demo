@@ -77,11 +77,44 @@ export type ReviewFlag = {
   resolved: boolean;
 };
 
-export type IntakeDraft = {
-  achievements: string;
-  challenges: string;
+export type KeywordRow = {
+  keyword: string;
+  detail: string;
+};
+
+export type ChallengeRow = KeywordRow;
+export type AchievementRow = KeywordRow;
+
+export type PlanRow = {
   plan: string;
-  story: string;
+  potentialGain: string;
+};
+
+export type TestimonialFile = {
+  name: string;
+  size: number;
+  type: string;
+};
+
+export type TestimonialSection = {
+  available: "None" | "Yes";
+  detail: string;
+  files: Array<TestimonialFile | null>;
+};
+
+export type MediaLinkRow = {
+  available: "None" | "Yes";
+  detail: string;
+};
+
+export type IntakeDraft = {
+  challenges: ChallengeRow[];
+  challengeKeywords: string[];
+  plans: PlanRow[];
+  achievements: AchievementRow[];
+  achievementKeywords: string[];
+  testimonial: TestimonialSection;
+  mediaLink: MediaLinkRow;
 };
 
 export type NudgeFollowUp = {

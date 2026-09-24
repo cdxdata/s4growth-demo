@@ -24,6 +24,7 @@ import {
   writeNotificationLog,
   writeWorkbookImported,
 } from "@/lib/storage";
+import { technicalNarratives } from "@/lib/technicalReport";
 
 const PIEDMONT_ID = 1;
 
@@ -428,20 +429,21 @@ export const mockDb = {
   },
 
   getQuarterlyDraft(): QuarterlyDraft {
-    const intake = state.intake ?? defaultIntakeDraft;
+    const intake = state.intake ?? defaultIntakeDraft();
     const fromIntake = Boolean(state.intake);
+    const narrative = technicalNarratives(intake);
     return clone({
       enrolled: 63,
       completions: 38,
       placements: 27,
       achievements: fromIntake
-        ? intake.achievements
+        ? narrative.achievements
         : "Across the network, training providers continued to expand regional workforce pathways, deepen employer relationships, and support participant advancement.",
       challenges: fromIntake
-        ? intake.challenges
+        ? narrative.challenges
         : "Reporting completeness remains uneven across providers. The team will use structured monthly submissions and targeted follow-up to identify gaps earlier in the reporting cycle.",
       plan: fromIntake
-        ? intake.plan
+        ? narrative.plan
         : "Continue monthly review, prioritize incomplete submissions, and confirm participant-level outcome totals before quarterly consolidation.",
       quote: "“The new manufacturing pathway gave me a clear way to move from training into a job I can grow with.”",
       fromIntake,

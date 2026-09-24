@@ -178,7 +178,7 @@ const PERIOD_VIEWS: Record<string, PeriodDashboard> = {
     pageSubtitle: "A clear view of this month’s reporting readiness.",
     impact: monthlyImpact("10 days", "3 days", "22%", "48%", "7 days saved", "+26 points"),
     rows: [
-      ["Not started", null, null],
+      ["Complete", -4, -4],
       ["Complete", -6, -6],
       ["Not started", null, null],
       ["Awaiting review", 0, 1],
@@ -196,7 +196,7 @@ const PERIOD_VIEWS: Record<string, PeriodDashboard> = {
     ],
     priority: [
       { icon: "!", title: "July intake not started", text: "Central Carolina Skills · 4 days overdue" },
-      { icon: "!", title: "Participant workbook pending", text: "Piedmont Community College · Q3 opening month" },
+      { icon: "✓", title: "July packet approved", text: "Piedmont Community College · Q3 opening month" },
       { icon: "×", title: "Employer contacts not confirmed", text: "Several western and eastern providers still idle" },
     ],
   },
@@ -209,7 +209,7 @@ const PERIOD_VIEWS: Record<string, PeriodDashboard> = {
     pageSubtitle: "A clear view of this month’s reporting readiness.",
     impact: monthlyImpact("8 days", "2 days", "29%", "61%", "6 days saved", "+32 points"),
     rows: [
-      ["Complete", -2, -2],
+      ["Awaiting review", 0, 1],
       ["Complete", -7, -7],
       ["Missing/flagged", -1, 0],
       ["Complete", 0, 0],

@@ -7,7 +7,7 @@ export function InvoicePage() {
 
   return (
     <>
-      <Header title="Invoice" subtitle={`${summary.monthLabel} Monthly Submission · ${summary.organizationName}`} />
+      <Header title="Invoice" subtitle={`${summary.monthLabel} Monthly Submission · ${summary.organizationName}`} hidePeriod />
       <div className="form-wrap">
         <button type="button" className="back" onClick={summary.goBack}>
           ← Monthly Submissions

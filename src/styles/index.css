@@ -1562,7 +1562,10 @@ div.success {
     grid-template-columns: 1fr;
   }
 
-  .fields {
+  .fields,
+  .field-group,
+  .address-streets,
+  .address-city-row {
     grid-template-columns: 1fr;
   }
 }
@@ -1687,6 +1690,22 @@ textarea.invalid {
   background: #f8fbff;
 }
 
+.submission-status-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  justify-self: start;
+}
+
+.submission-status-stack .status-badge.is-sub,
+.submission-status-stack .status-idle.is-sub {
+  min-width: 0;
+  min-height: 1.35rem;
+  padding: 3px 8px;
+  font-size: 10px;
+}
+
 .submission-card-row .status-badge,
 .submission-card-row .status-idle {
   justify-self: start;
@@ -1764,8 +1783,29 @@ textarea.invalid {
   max-width: 28rem;
 }
 
+.eda-survey {
+  max-width: 920px;
+}
+
 .eda-wrap {
-  max-width: 1040px;
+  max-width: 760px;
+}
+
+.eda-sticky-head {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  background: var(--canvas);
+  padding: 6px 0 12px;
+  margin: 0 0 16px;
+}
+
+.eda-sticky-head .eda-form-title {
+  margin-top: 0;
+}
+
+.eda-sticky-head .eda-section-head {
+  margin-bottom: 0;
 }
 
 .eda-form-title {
@@ -1774,6 +1814,129 @@ textarea.invalid {
   align-items: flex-end;
   gap: 16px;
   margin: 8px 0 6px;
+}
+
+.tech-section .section-title {
+  margin-bottom: 16px;
+}
+
+.tech-eda-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 750;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tech-eda-badge.is-filled {
+  color: var(--green);
+  background: #e9f7f0;
+}
+
+.tech-eda-badge.is-missing {
+  color: var(--yellow);
+  background: #fff7e7;
+}
+
+.tech-eda-badge-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 800;
+  background: #fff;
+}
+
+.tech-keyword-row {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.85fr) minmax(0, 1.4fr) auto;
+  gap: 12px;
+  align-items: start;
+  margin-bottom: 14px;
+}
+
+.tech-keyword-row textarea {
+  min-height: 76px;
+}
+
+.tech-row-remove {
+  margin-top: 26px;
+}
+
+.tech-add-keyword {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.tech-plan-table-wrap {
+  overflow-x: auto;
+}
+
+.tech-plan-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 10px;
+}
+
+.tech-plan-table th,
+.tech-plan-table td {
+  padding: 8px 8px 8px 0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.tech-plan-table th {
+  font-size: 11px;
+  font-weight: 750;
+  color: #476078;
+}
+
+.tech-plan-sn {
+  width: 3rem;
+}
+
+.tech-plan-action {
+  width: 5.5rem;
+}
+
+.tech-plan-table input {
+  width: 100%;
+}
+
+.tech-testimonial-files,
+.tech-media-fields {
+  display: grid;
+  gap: 12px;
+}
+
+.tech-file-slot {
+  display: grid;
+  gap: 8px;
+}
+
+.tech-file-name {
+  font-size: 12px;
+  font-weight: 650;
+  color: #34475c;
+}
+
+@media (max-width: 960px) {
+  .tech-keyword-row {
+    grid-template-columns: 1fr;
+  }
+
+  .tech-row-remove {
+    margin-top: 0;
+  }
 }
 
 .eda-form-title h2 {
@@ -1790,39 +1953,27 @@ textarea.invalid {
 }
 
 .eda-segments {
-  display: flex;
-  gap: 4px;
   overflow-x: auto;
-  margin: 8px 0 22px;
-  padding-bottom: 2px;
+  margin: 4px 0 18px;
+  scrollbar-width: none;
 }
 
-.eda-segment {
+.eda-segments::-webkit-scrollbar {
+  display: none;
+}
+
+.eda-segments button {
   flex: 0 0 auto;
-  background: transparent;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  padding: 10px 12px;
-  color: #7d8b99;
-  font-size: 12px;
-  font-weight: 650;
-  cursor: pointer;
   white-space: nowrap;
 }
 
-.eda-segment.current {
-  color: var(--navy);
-  border-bottom-color: var(--blue);
-}
-
-.eda-segment:disabled {
+.eda-segments button:disabled {
   opacity: 0.4;
   cursor: default;
 }
 
 .eda-section-head {
-  margin: 0 0 20px;
+  margin: 0 0 16px;
 }
 
 .eda-section-head h2 {
@@ -1882,9 +2033,26 @@ textarea.invalid {
   font-size: 13px;
 }
 
-.eda-review-card {
+.eda-review-card,
+.eda-form-card {
   padding: 20px 22px;
   margin-bottom: 14px;
+}
+
+.eda-form-card {
+  border: 1px solid var(--line);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.eda-form-card:focus-within {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px #d7e8fb;
+}
+
+.eda-form-card.is-invalid,
+.eda-form-card.is-invalid:focus-within {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px #f8d9db;
 }
 
 .eda-review-head {
@@ -1922,6 +2090,290 @@ textarea.invalid {
   margin-bottom: 28px;
 }
 
+.check-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.check-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.check-option input {
+  margin-top: 2px;
+  width: auto;
+}
+
+.no-participants {
+  display: flex;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbff;
+  font-weight: 650;
+}
+
+.skip-section {
+  margin: 4px 0 8px;
+}
+
+.reason-block {
+  min-width: 0;
+}
+
+.reason-block legend,
+.subfield-group legend {
+  font-size: 13px;
+  font-weight: 750;
+  color: #34475c;
+}
+
+.reason-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.subfield-group {
+  display: block;
+  border: 1px dotted #7d93a6;
+  border-radius: 10px;
+  padding: 14px 16px 16px;
+  background: #f7fafc;
+}
+
+fieldset.subfield-group {
+  min-width: 0;
+  margin: 0;
+}
+
+.subfield-group > legend {
+  padding: 0 6px;
+  margin-left: 6px;
+  background: #f7fafc;
+}
+
+.subfield-group .skip-section {
+  border-style: dashed;
+  background: #fff;
+}
+
+.currency-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+}
+
+.currency-prefix {
+  color: #476078;
+  font-weight: 750;
+}
+
+.currency-input input {
+  flex: 0 0 auto;
+  width: 7.5rem;
+}
+
+.eda-wrap .field-numeric input[type="number"] {
+  width: 6.5rem;
+  max-width: 100%;
+  justify-self: start;
+}
+
+.eda-wrap .field-numeric.full label,
+.eda-wrap .field-numeric.full .helper {
+  max-width: 40rem;
+}
+
+.eda-wrap .field-date {
+  justify-self: start;
+}
+
+.eda-wrap .field-zip input {
+  width: 6.5rem;
+  max-width: 100%;
+}
+
+.eda-wrap .address-grid .field:nth-child(2) select {
+  width: 5.5rem;
+}
+
+.external-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--blue);
+  font-weight: 650;
+}
+
+.external-link-icon {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.eda-review-program {
+  grid-column: 1 / -1;
+  padding-top: 10px;
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
+.eda-review-program:first-child {
+  border-top: 0;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.eda-review-program dt {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.participant-stack {
+  display: grid;
+  gap: 0;
+  margin-top: 0;
+}
+
+.participant-card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  background: #fff;
+}
+
+.participant-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.participant-card-head h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.date-parts {
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.date-parts legend,
+.address-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #34475c;
+}
+
+.date-parts-grid {
+  display: grid;
+  grid-template-columns: 10.5rem 4.5rem 5.5rem;
+  width: max-content;
+  max-width: 100%;
+  gap: 10px;
+}
+
+.date-parts-grid label {
+  display: grid;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.field-group {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 17px;
+  padding: 0 0 18px;
+  margin: 0 0 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.field-group:last-child {
+  border-bottom: 0;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.address-group .address-label {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.address-streets,
+.address-city-row {
+  grid-column: 1 / -1;
+  display: grid;
+  align-items: start;
+  gap: 14px 17px;
+}
+
+.address-streets {
+  grid-template-columns: 1fr 1fr;
+}
+
+.address-city-row {
+  grid-template-columns: minmax(0, 1fr) 6.5rem 7rem;
+}
+
+.address-group .field label {
+  display: block;
+  min-height: 1.2em;
+  line-height: 1.2;
+}
+
+.address-zip-helper {
+  grid-column: 1 / -1;
+  margin-top: -8px;
+}
+
+.address-block {
+  gap: 12px;
+}
+
+.address-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 0.6fr 0.8fr;
+  gap: 12px;
+}
+
+fieldset.field:not(.subfield-group) {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+fieldset.field legend {
+  font-size: 12px;
+  font-weight: 700;
+  color: #34475c;
+  margin-bottom: 7px;
+}
+
 @media (max-width: 960px) {
   .login-shell {
     grid-template-columns: 1fr;
@@ -1948,6 +2400,13 @@ textarea.invalid {
   }
 
   .eda-review-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .address-grid,
+  .address-streets,
+  .address-city-row,
+  .field-group {
     grid-template-columns: 1fr;
   }
 }

@@ -1,5 +1,5 @@
 import type { AuthIdentity } from "@/types/auth";
-import type { IntakeDraft, NudgeLog } from "@/types/domain";
+import type { NudgeLog } from "@/types/domain";
 
 export const STORAGE_KEYS = {
   workbookImported: "s4g-workbook-imported",
@@ -45,10 +45,4 @@ export function clearSession(): void {
   localStorage.removeItem(STORAGE_KEYS.session);
 }
 
-export const defaultIntakeDraft: IntakeDraft = {
-  achievements:
-    "Piedmont launched a new advanced manufacturing cohort with local employer support.",
-  challenges: "",
-  plan: "",
-  story: "",
-};
+export { defaultIntakeDraft } from "@/lib/technicalReport";

@@ -21,6 +21,12 @@ function makeReps(entityId: string, people: Array<[string, string]>): Representa
   }));
 }
 
+export function programsForOrganization(name: string): string[] {
+  const org = TRAINING_PROVIDERS.find((item) => item.name === name);
+  if (!org) return [];
+  return TP_PROGRAMS[org.id] ?? [org.program];
+}
+
 export function createDirectoryEntities(): DirectoryEntity[] {
   const trainingProviders: DirectoryEntity[] = TRAINING_PROVIDERS.map((org) => ({
     id: `tp-${org.id}`,

@@ -7,7 +7,7 @@ export function EdaReviewPage() {
 
   return (
     <>
-      <Header title="Review EDA Survey" subtitle={`${summary.monthLabel} Monthly Submission · ${summary.organizationName}`} />
+      <Header title="Review EDA Survey" subtitle={`${summary.monthLabel} Monthly Submission · ${summary.organizationName}`} hidePeriod />
       <div className="form-wrap eda-wrap">
         <button type="button" className="back" onClick={summary.goBack}>
           ← Monthly Submissions
@@ -30,10 +30,10 @@ export function EdaReviewPage() {
               </button>
             </div>
             <dl className="eda-review-grid">
-              {section.rows.map((row) => (
-                <div key={`${section.id}-${row.label}`}>
+              {section.rows.map((row, index) => (
+                <div key={`${section.id}-${index}-${row.label}`} className={row.value === "Program section" ? "eda-review-program" : undefined}>
                   <dt>{row.label}</dt>
-                  <dd>{row.value}</dd>
+                  <dd>{row.value === "Program section" ? "" : row.value}</dd>
                 </div>
               ))}
             </dl>

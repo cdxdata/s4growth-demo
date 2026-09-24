@@ -1,12 +1,19 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { emptyEdaDraft, emptyInvoiceDraft, filledEdaDraft } from "@/constants/eda";
 import { defaultIntakeDraft } from "@/lib/storage";
+import { ACHIEVEMENT_KEYWORDS, applyTechnicalDefaults, filledTechnicalDraft } from "@/lib/technicalReport";
 import type { IntakeDraft } from "@/types/domain";
 import type { EdaSurveyDraft, InvoiceDraft, MonthlyPackageStatus, PeriodSubmissionRecord } from "@/types/submissions";
 
 const STORAGE_KEY = "s4g-monthly-submissions";
-const STORAGE_VERSION = 1;
+const STORAGE_VERSION = 8;
 const LAST_EDA_STEP = 9;
+
+function technicalForFilledMonth(eda: EdaSurveyDraft, extras: Partial<IntakeDraft>): IntakeDraft {
+  const base = filledTechnicalDraft();
+  const suggested = applyTechnicalDefaults(base, eda);
+  return { ...base, ...suggested, ...extras };
+}
 
 type SubmissionsState = {
   version: number;
@@ -16,7 +23,7 @@ type SubmissionsState = {
 function emptyRecord(): PeriodSubmissionRecord {
   return {
     status: "Action Needed",
-    technical: { achievements: "", challenges: "", plan: "", story: "" },
+    technical: defaultIntakeDraft(),
     eda: emptyEdaDraft(),
     invoice: emptyInvoiceDraft(),
     edaMaxStep: 0,
@@ -30,31 +37,52 @@ function seedState(): SubmissionsState {
     byPeriod: {
       "2026-07": {
         status: "Approved",
-        technical: {
-          achievements: "July cohorts completed CNC fundamentals with employer site visits in Alamance and Guilford.",
-          challenges: "Two evening sections ran below capacity after a plant schedule change.",
-          plan: "Move one section to a weekend format and add employer-referred seats.",
-          story: "A participant moved from temporary work into a full-time machining role.",
-        },
-        eda: { ...filledEdaDraft(provider), asOfDate: "2026-07-31", enrolled: "16", newEnrollments: "6" },
+        technical: (() => {
+          const draft = filledEdaDraft(provider);
+          return technicalForFilledMonth(draft, {});
+        })(),
+        eda: (() => {
+          const draft = filledEdaDraft(provider);
+          return {
+            ...draft,
+            admissions: draft.admissions.map((item, index) =>
+              index === 0 ? { ...item, recruited: "20", admitted: "17", enrolled: "16" } : item,
+            ),
+          };
+        })(),
         invoice: { invoiceNumber: "PCC-2026-07", amount: "18420", notes: "July instructional and wraparound costs." },
         edaMaxStep: LAST_EDA_STEP,
       },
       "2026-08": {
         status: "Submitted",
-        technical: {
-          achievements: "August added a second manufacturing pathway and a paid internship block.",
-          challenges: "Credential paperwork lagged for late completers.",
-          plan: "Assign a staff reviewer to close credential files within five days.",
-          story: "",
-        },
+        technical: (() => {
+          const seeded = technicalForFilledMonth(filledEdaDraft(provider), {
+            challenges: [{ keyword: "Data Collection", detail: "Credential paperwork lagged for late completers." }],
+            plans: [
+              {
+                plan: "Assign a staff reviewer to close credential files within five days.",
+                potentialGain: "Close credential files within five days of completion.",
+              },
+            ],
+            testimonial: defaultIntakeDraft().testimonial,
+            mediaLink: defaultIntakeDraft().mediaLink,
+          });
+          return {
+            ...seeded,
+            achievementKeywords: [...ACHIEVEMENT_KEYWORDS.slice(0, -1), "New pathway", "None"],
+            achievements: [
+              ...seeded.achievements,
+              { keyword: "New pathway", detail: "August added a second manufacturing pathway and a paid internship block." },
+            ],
+          };
+        })(),
         eda: filledEdaDraft(provider),
         invoice: { invoiceNumber: "PCC-2026-08", amount: "", notes: "" },
         edaMaxStep: LAST_EDA_STEP,
       },
       "2026-09": {
         status: "Action Needed",
-        technical: defaultIntakeDraft,
+        technical: defaultIntakeDraft(),
         eda: emptyEdaDraft(),
         invoice: emptyInvoiceDraft(),
         edaMaxStep: 0,
@@ -108,6 +136,10 @@ const submissionsSlice = createSlice({
       record.eda = { ...record.eda, ...action.payload.patch };
       persist(state);
     },
+    saveEdaDraft(state, action: PayloadAction<{ periodId: string }>) {
+      ensurePeriod(state, action.payload.periodId);
+      persist(state);
+    },
     updateInvoice(state, action: PayloadAction<{ periodId: string; patch: Partial<InvoiceDraft> }>) {
       const record = ensurePeriod(state, action.payload.periodId);
       record.invoice = { ...record.invoice, ...action.payload.patch };
@@ -136,6 +168,7 @@ const submissionsSlice = createSlice({
 export const {
   updateTechnical,
   updateEda,
+  saveEdaDraft,
   updateInvoice,
   setEdaMaxStep,
   submitMonthlyPackage,

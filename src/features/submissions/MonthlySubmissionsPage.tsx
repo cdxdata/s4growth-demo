@@ -1,6 +1,7 @@
 import { Header } from "@/components/layout/Header";
 import { DocumentStatusBadge } from "@/components/ui/DocumentStatusBadge";
 import { PackageStatusBadge } from "@/components/ui/PackageStatusBadge";
+import { SubmissionBadge } from "@/components/ui/SubmissionBadge";
 import { useMonthlySubmissions } from "@/features/submissions/useMonthlySubmissions";
 
 export function MonthlySubmissionsPage() {
@@ -10,7 +11,8 @@ export function MonthlySubmissionsPage() {
     <>
       <Header
         title="Monthly Submissions"
-        subtitle={`${summary.organizationName} · ${summary.quarterLabel}. Complete the technical report and EDA Survey before you submit.`}
+        subtitle={`${summary.organizationName}. Complete the EDA Survey and technical report before you submit.`}
+        hidePeriod
       />
       <section className="submissions-board">
         <div className="submissions-head">
@@ -32,7 +34,10 @@ export function MonthlySubmissionsPage() {
                   <strong>{row.title}</strong>
                   <span className="submission-due">{row.dueLabel}</span>
                 </div>
-                <PackageStatusBadge status={row.status} />
+                <span className="submission-status-stack">
+                  <PackageStatusBadge status={row.status} />
+                  {row.reviewStatus ? <SubmissionBadge status={row.reviewStatus} compact /> : null}
+                </span>
                 <span className="submission-caret" aria-hidden>
                   {open ? "▾" : "›"}
                 </span>

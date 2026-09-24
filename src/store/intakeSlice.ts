@@ -8,7 +8,7 @@ type IntakeState = {
 };
 
 const initialState: IntakeState = {
-  draft: defaultIntakeDraft,
+  draft: defaultIntakeDraft(),
   submitted: false,
 };
 
