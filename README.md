@@ -2,27 +2,45 @@
 
 A standalone, synthetic-data proof-of-value for the NC A&T Steps4Growth reporting workflow.
 
+The is a Vite + React TypeScript app. Screens follow the **Summary pattern**: each view is a thin render function, and a matching `use*` hook returns the summary object (data, derived state, and actions) that the view needs.
+
+- **Vite** builds and serves the React app
+- **Redux Toolkit** holds client/workspace state (reporting cycle, intake draft, toasts)
+- **TanStack Query** fetches and mutates the synthetic reporting API
+
 ## Run locally
 
-From the parent directory:
-
 ```bash
-python3 -m http.server 4173 --directory steps4growth-demo
+npm install
+npm run dev
 ```
 
 Open `http://localhost:4173`.
 
+```bash
+npm run build
+npm run preview
+```
+
 ## Demo story
 
 1. Start at the reporting dashboard and open Piedmont Community College.
-2. Call out the three projected impact measures: reporting delay, first-attempt completeness, and PPR preparation time.
-3. Open **Participant review** and import the synthetic EDA Survey Tool records.
-4. Open **Monthly intake**, complete the two required narrative fields, and submit.
-5. Show the updated review queue and tracker state.
-6. Open **Nudges**, log a simulated reminder, and show the persistent notification outbox.
-7. Open **Quarterly draft** to show the submitted narratives and participant rollups assembled into one traceable draft.
-8. Generate the coded EDA summary CSV and show the no-transmission confirmation.
+2. Open **Monthly Submissions**, complete the two required narrative fields, and submit.
+3. Show the updated review queue and resolved completion-total flag.
+4. Open **Nudges** and log a simulated reminder.
+5. Open **Quarterly draft** to show the structured update available in the reporting draft.
 
-The primary UI is written in React and uses synthetic data. It includes a small local fallback so the demo remains viewable if external browser scripts are unavailable. Email delivery and EDA submission are intentionally simulated.
+The primary UI uses synthetic data from `src/api/mockDb.ts`. Email delivery and EDA submission are intentionally simulated. The workbook-import flag and nudge log persist in `localStorage` so those demo steps survive a refresh.
 
-Use **Reset demo data** at the bottom of the navigation before a rehearsal or presentation.
+## Project layout
+
+```
+src/
+  api/                 TanStack Query-facing mock API
+  app/                 Store, typed hooks, providers
+  components/          Shared layout and UI
+  constants/           Navigation and cycle labels
+  features/*/          One folder per screen: Page + use* summary hook
+  store/               Redux Toolkit slices
+  types/               Shared domain types
+```
