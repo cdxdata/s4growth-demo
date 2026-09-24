@@ -22,6 +22,13 @@ npm run build
 npm run preview
 ```
 
+## To deploy to Github Pages
+```bash
+npm run build
+cp dist/index.html dist/404.html
+npx gh-pages -d dist
+```
+
 ## Demo story
 
 1. Start at the reporting dashboard and open Piedmont Community College.
