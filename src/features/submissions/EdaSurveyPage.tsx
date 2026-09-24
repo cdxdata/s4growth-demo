@@ -20,6 +20,7 @@ import {
   type EdaField,
 } from "@/constants/eda";
 import { Header } from "@/components/layout/Header";
+import { FieldMarks } from "@/components/ui/FieldMarks";
 import { Panel } from "@/components/ui/Panel";
 import { useEdaSurvey } from "@/features/submissions/useEdaSurvey";
 import { isEdaProgramSectionValid, isEdaSegmentValid, isParticipantValid, isValidZip } from "@/lib/submissionDocuments";
@@ -83,11 +84,21 @@ export function EdaSurveyPage() {
           <Panel className={formCardClass(invalidSegment)}>
             <div className="fields">
               {segment.fields.map((field) => (
-                <EdaFieldInput key={field.key} field={field} value={draft[field.key]} invalid={invalidSegment && Boolean(field.required) && !draft[field.key].trim()} onChange={summary.change} />
+                <EdaFieldInput
+                  key={field.key}
+                  field={field}
+                  value={draft[field.key]}
+                  invalid={invalidSegment && Boolean(field.required) && !draft[field.key].trim()}
+                  onChange={summary.change}
+                  mark={reviewMark(summary, `eda.training-provider.${field.key}`)}
+                />
               ))}
               <div className="field full">
                 <label>
                   Training Program <span className="req">*</span>
+                  {reviewMark(summary, "eda.training-provider.trainingPrograms") ? (
+                    <FieldMarks mark={reviewMark(summary, "eda.training-provider.trainingPrograms")} />
+                  ) : null}
                 </label>
                 <span className="helper">Programs this provider already offers are filled in. Add more if needed.</span>
                 <div className="program-fields">
@@ -152,11 +163,26 @@ function formCardClass(invalid?: boolean) {
   return `eda-form-card${invalid ? " is-invalid" : ""}`;
 }
 
-function ProgramCard({ title, children, invalid }: { title: string; children: ReactNode; invalid?: boolean }) {
+function reviewMark(summary: SurveySummary, id: string) {
+  return summary.showMarks ? summary.fieldMarks[id] : undefined;
+}
+
+function ProgramCard({
+  title,
+  children,
+  invalid,
+  mark,
+}: {
+  title: string;
+  children: ReactNode;
+  invalid?: boolean;
+  mark?: "good" | "bad";
+}) {
   return (
-    <Panel className={formCardClass(invalid)}>
+    <Panel className={`${formCardClass(invalid)}${mark === "bad" ? " is-flagged" : ""}`}>
       <div className="participant-card-head">
         <h3>{title}</h3>
+        {mark ? <FieldMarks mark={mark} /> : null}
       </div>
       <div className="fields">{children}</div>
     </Panel>
@@ -197,6 +223,7 @@ function InstitutionalSections({ summary, invalid }: { summary: SurveySummary; i
           onProgram={(value) => summary.changeProgram(index, value)}
           onChange={(patch) => summary.updateProgramRecord("institutional", index, patch)}
           onHour={(value) => summary.toggleInstitutionalHour(index, value)}
+          mark={reviewMark(summary, `eda.institutional-information.${index}`)}
         />
       ))}
     </div>
@@ -211,6 +238,7 @@ function InstitutionalCard({
   onProgram,
   onChange,
   onHour,
+  mark,
 }: {
   item: InstitutionalProgram;
   index: number;
@@ -219,9 +247,10 @@ function InstitutionalCard({
   onProgram: (value: string) => void;
   onChange: (patch: Partial<InstitutionalProgram>) => void;
   onHour: (value: string) => void;
+  mark?: "good" | "bad";
 }) {
   return (
-    <ProgramCard title={programTitle(item.trainingProgram, index)} invalid={invalid && !isEdaProgramSectionValid("institutional-information", item)}>
+    <ProgramCard title={programTitle(item.trainingProgram, index)} invalid={invalid && !isEdaProgramSectionValid("institutional-information", item)} mark={mark}>
       <ProviderProgramFields provider={item.trainingProvider} program={item.trainingProgram} invalid={invalid} onProvider={onProvider} onProgram={onProgram} />
       <SelectField label="Length of Program" required value={item.programLength} options={PROGRAM_LENGTHS} invalid={invalid && !item.programLength} onChange={(value) => onChange({ programLength: value })} />
       <SelectField label="Environment Type" required value={item.environmentType} options={ENVIRONMENT_TYPES} invalid={invalid && !item.environmentType} onChange={(value) => onChange({ environmentType: value })} />
@@ -273,7 +302,7 @@ function AdmissionsSections({ summary, invalid }: { summary: SurveySummary; inva
   return (
     <div className="participant-stack">
       {summary.draft.admissions.map((item, index) => (
-        <ProgramCard key={`admissions-${index}`} title={programTitle(item.trainingProgram, index)} invalid={invalid && !isEdaProgramSectionValid("admissions", item)}>
+        <ProgramCard key={`admissions-${index}`} title={programTitle(item.trainingProgram, index)} invalid={invalid && !isEdaProgramSectionValid("admissions", item)} mark={reviewMark(summary, `eda.admissions.${index}`)}>
           <ProviderProgramFields
             provider={item.trainingProvider}
             program={item.trainingProgram}
@@ -303,7 +332,7 @@ function CompletionSections({ summary, invalid }: { summary: SurveySummary; inva
   return (
     <div className="participant-stack">
       {summary.draft.completions.map((item, index) => (
-        <ProgramCard key={`completion-${index}`} title={programTitle(item.trainingProgram, index)} invalid={invalid && !isEdaProgramSectionValid("training-completion", item)}>
+        <ProgramCard key={`completion-${index}`} title={programTitle(item.trainingProgram, index)} invalid={invalid && !isEdaProgramSectionValid("training-completion", item)} mark={reviewMark(summary, `eda.training-completion.${index}`)}>
           <ProviderProgramFields
             provider={item.trainingProvider}
             program={item.trainingProgram}
@@ -350,6 +379,7 @@ function NonCompletionSections({ summary, invalid }: { summary: SurveySummary; i
           onCount={(value) => summary.updateProgramRecord("nonCompletions", index, { didNotComplete: value })}
           onSkip={() => summary.toggleNonCompletionSkip(index)}
           onReason={(key, value) => summary.updateNonCompletionReason(index, key, value)}
+          mark={reviewMark(summary, `eda.reason-for-non-completion.${index}`)}
         />
       ))}
     </div>
@@ -365,6 +395,7 @@ function NonCompletionCard({
   onCount,
   onSkip,
   onReason,
+  mark,
 }: {
   item: NonCompletionProgram;
   index: number;
@@ -374,10 +405,11 @@ function NonCompletionCard({
   onCount: (value: string) => void;
   onSkip: () => void;
   onReason: (key: Parameters<SurveySummary["updateNonCompletionReason"]>[1], value: string) => void;
+  mark?: "good" | "bad";
 }) {
   const otherCount = Number(item.reasons.other);
   return (
-    <ProgramCard title={programTitle(item.trainingProgram, index)} invalid={invalid && !isEdaProgramSectionValid("reason-for-non-completion", item)}>
+    <ProgramCard title={programTitle(item.trainingProgram, index)} invalid={invalid && !isEdaProgramSectionValid("reason-for-non-completion", item)} mark={mark}>
       <ProviderProgramFields provider={item.trainingProvider} program={item.trainingProgram} invalid={invalid} onProvider={onProvider} onProgram={onProgram} />
       <NumberField
         label="How many GJC participants did not complete training in the program?"
@@ -431,7 +463,7 @@ function EmploymentTypeSections({ summary, invalid }: { summary: SurveySummary; 
   return (
     <div className="participant-stack">
       {summary.draft.employmentType.map((item, index) => (
-        <ProgramCard key={`employment-type-${index}`} title={programTitle(item.trainingProgram, index)} invalid={invalid && !isEdaProgramSectionValid("employment-type", item)}>
+        <ProgramCard key={`employment-type-${index}`} title={programTitle(item.trainingProgram, index)} invalid={invalid && !isEdaProgramSectionValid("employment-type", item)} mark={reviewMark(summary, `eda.employment-type.${index}`)}>
           <ProviderProgramFields
             provider={item.trainingProvider}
             program={item.trainingProgram}
@@ -480,7 +512,7 @@ function EarnAndLearnSections({ summary, invalid }: { summary: SurveySummary; in
   return (
     <div className="participant-stack">
       {summary.draft.earnAndLearn.map((item, index) => (
-        <ProgramCard key={`earn-and-learn-${index}`} title={programTitle(item.trainingProgram, index)} invalid={invalid && !isEdaProgramSectionValid("earn-and-learn", item)}>
+        <ProgramCard key={`earn-and-learn-${index}`} title={programTitle(item.trainingProgram, index)} invalid={invalid && !isEdaProgramSectionValid("earn-and-learn", item)} mark={reviewMark(summary, `eda.earn-and-learn.${index}`)}>
           <ProviderProgramFields
             provider={item.trainingProvider}
             program={item.trainingProgram}
@@ -538,7 +570,7 @@ function SalariesSections({ summary, invalid }: { summary: SurveySummary; invali
   return (
     <div className="participant-stack">
       {summary.draft.salaries.map((item, index) => (
-        <ProgramCard key={`salaries-${index}`} title={programTitle(item.trainingProgram, index)} invalid={invalid && !isEdaProgramSectionValid("salaries-of-participants", item)}>
+        <ProgramCard key={`salaries-${index}`} title={programTitle(item.trainingProgram, index)} invalid={invalid && !isEdaProgramSectionValid("salaries-of-participants", item)} mark={reviewMark(summary, `eda.salaries-of-participants.${index}`)}>
           <ProviderProgramFields
             provider={item.trainingProvider}
             program={item.trainingProgram}
@@ -597,7 +629,7 @@ function EmploymentStatusSections({ summary, invalid }: { summary: SurveySummary
   return (
     <div className="participant-stack">
       {summary.draft.employmentStatus.map((item, index) => (
-        <ProgramCard key={`employment-status-${index}`} title={programTitle(item.trainingProgram, index)} invalid={invalid && !isEdaProgramSectionValid("employment-status-6-months", item)}>
+        <ProgramCard key={`employment-status-${index}`} title={programTitle(item.trainingProgram, index)} invalid={invalid && !isEdaProgramSectionValid("employment-status-6-months", item)} mark={reviewMark(summary, `eda.employment-status-6-months.${index}`)}>
           <ProviderProgramFields
             provider={item.trainingProvider}
             program={item.trainingProgram}
@@ -717,6 +749,7 @@ function ParticipantDatabaseFields({
               programOptions={summary.programOptions}
               invalid={invalid}
               canRemove={draft.participants.length > 1}
+              mark={reviewMark(summary, draft.noParticipants ? "eda.participant-database.none" : `eda.participant-database.${index}`)}
               onChange={(patch) => summary.updateParticipant(index, patch)}
               onDate={(field, part, value) => summary.updateParticipantDate(index, field, part, value)}
               onRemove={() => summary.removeParticipant(index)}
@@ -737,6 +770,7 @@ function ParticipantCard({
   programOptions,
   invalid,
   canRemove,
+  mark,
   onChange,
   onDate,
   onRemove,
@@ -746,6 +780,7 @@ function ParticipantCard({
   programOptions: string[];
   invalid: boolean;
   canRemove: boolean;
+  mark?: "good" | "bad";
   onChange: (patch: Partial<EdaParticipant>) => void;
   onDate: (field: "trainingStart" | "trainingEnd" | "jobStart" | "dateOfBirth", part: keyof SplitDate, value: string) => void;
   onRemove: () => void;
@@ -755,6 +790,7 @@ function ParticipantCard({
     <Panel className={formCardClass(invalid && !isParticipantValid(person))}>
       <div className="participant-card-head">
         <h3>Participant {index + 1}</h3>
+        {mark ? <FieldMarks mark={mark} /> : null}
         {canRemove ? (
           <button type="button" className="btn ghost" onClick={onRemove}>
             Remove
@@ -1028,11 +1064,13 @@ function EdaFieldInput({
   value,
   invalid,
   onChange,
+  mark,
 }: {
   field: EdaField;
   value: string;
   invalid: boolean;
   onChange: ReturnType<typeof useEdaSurvey>["change"];
+  mark?: "good" | "bad";
 }) {
   const id = `eda-${field.key}`;
   return (
@@ -1040,6 +1078,7 @@ function EdaFieldInput({
       <label htmlFor={id}>
         {field.label}
         {field.required ? <span className="req"> *</span> : null}
+        {mark ? <FieldMarks mark={mark} /> : null}
       </label>
       {field.type === "select" ? (
         <select id={id} name={field.key} value={value} className={invalid ? "invalid" : undefined} onChange={onChange}>

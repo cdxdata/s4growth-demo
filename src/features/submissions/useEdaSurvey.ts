@@ -5,7 +5,9 @@ import { EDA_SEGMENTS, EDA_SEGMENT_IDS, isEdaSegmentId, type EdaFieldKey, type E
 import { getPeriodById } from "@/constants/periods";
 import { syncProgramSections } from "@/lib/edaProgramRecords";
 import { applyKnownEdaDefaults, createEmptyParticipant, getProviderKnownData } from "@/lib/providerKnownData";
+import { resolveProviderId } from "@/lib/providerScope";
 import { filledPrograms, isEdaSegmentValid, isTrainingProviderSegmentValid } from "@/lib/submissionDocuments";
+import { normalizeEdaReview } from "@/lib/reviewModel";
 import { getPeriodSubmission, saveEdaDraft, setEdaMaxStep, updateEda } from "@/store/submissionsSlice";
 import { showToast } from "@/store/uiSlice";
 import type { EdaParticipant, EdaSurveyDraft, NonCompletionReasons, SplitDate } from "@/types/submissions";
@@ -62,6 +64,8 @@ export type EdaSurveySummary = {
   removeParticipant: (index: number) => void;
   saveSubmission: () => void;
   saveAndContinue: () => void;
+  showMarks: boolean;
+  fieldMarks: Record<string, "good" | "bad">;
 };
 
 export function useEdaSurvey(): EdaSurveySummary {
@@ -69,7 +73,8 @@ export function useEdaSurvey(): EdaSurveySummary {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const identity = useAppSelector((state) => state.auth.identity);
-  const record = useAppSelector((state) => getPeriodSubmission(state.submissions, periodId));
+  const providerId = resolveProviderId(identity);
+  const record = useAppSelector((state) => getPeriodSubmission(state.submissions, periodId, providerId));
   const [error, setError] = useState("");
   const [showErrors, setShowErrors] = useState(false);
 
@@ -81,6 +86,8 @@ export function useEdaSurvey(): EdaSurveySummary {
   const known = useMemo(() => getProviderKnownData(organizationName), [organizationName]);
   const programs = record.eda.trainingPrograms.length > 0 ? record.eda.trainingPrograms : known.programs.length ? known.programs : [""];
   const programOptions = Array.from(new Set([...known.programs, ...filledPrograms(record.eda.trainingPrograms)]));
+  const edaReview = normalizeEdaReview(record.review["eda-survey"]);
+  const sectionReview = edaReview.sections[currentId];
 
   let redirectTo: string | null = null;
   if (!periodId || period.kind === "quarterly") redirectTo = "/submissions";
@@ -95,7 +102,7 @@ export function useEdaSurvey(): EdaSurveySummary {
     if (!periodId) return;
     const patch = applyKnownEdaDefaults(record.eda, known, { year: period.year, month: period.month });
     if (Object.keys(patch).length > 0) {
-      dispatch(updateEda({ periodId, patch }));
+      dispatch(updateEda({ providerId, periodId,  patch }));
     }
   }, [dispatch, known, period.month, period.year, periodId, record.eda]);
 
@@ -121,6 +128,8 @@ export function useEdaSurvey(): EdaSurveySummary {
     showErrors,
     isLast: segmentIndex === EDA_SEGMENTS.length - 1,
     canAddProgram: programs.length < MAX_PROGRAMS,
+    showMarks: sectionReview?.score === "Flagged",
+    fieldMarks: sectionReview?.fieldMarks ?? {},
     goBack() {
       navigate("/submissions");
     },
@@ -136,6 +145,7 @@ export function useEdaSurvey(): EdaSurveySummary {
       const next = { ...record.eda, [name]: value };
       dispatch(
         updateEda({
+          providerId,
           periodId,
           patch: name === "trainingProvider" ? { trainingProvider: value, ...syncProgramSections(next) } : { [name]: value },
         }),
@@ -145,27 +155,27 @@ export function useEdaSurvey(): EdaSurveySummary {
       const nextPrograms = [...programs];
       nextPrograms[index] = value;
       const next = { ...record.eda, trainingPrograms: nextPrograms };
-      dispatch(updateEda({ periodId, patch: { trainingPrograms: nextPrograms, ...syncProgramSections(next) } }));
+      dispatch(updateEda({ providerId, periodId,  patch: { trainingPrograms: nextPrograms, ...syncProgramSections(next) } }));
     },
     addProgram() {
       if (programs.length >= MAX_PROGRAMS) return;
       const nextPrograms = [...programs, ""];
       const next = { ...record.eda, trainingPrograms: nextPrograms };
-      dispatch(updateEda({ periodId, patch: { trainingPrograms: nextPrograms, ...syncProgramSections(next) } }));
+      dispatch(updateEda({ providerId, periodId,  patch: { trainingPrograms: nextPrograms, ...syncProgramSections(next) } }));
     },
     removeProgram(index) {
       if (programs.length <= 1) return;
       const nextPrograms = programs.filter((_, item) => item !== index);
       const next = { ...record.eda, trainingPrograms: nextPrograms };
-      dispatch(updateEda({ periodId, patch: { trainingPrograms: nextPrograms, ...syncProgramSections(next) } }));
+      dispatch(updateEda({ providerId, periodId,  patch: { trainingPrograms: nextPrograms, ...syncProgramSections(next) } }));
     },
     toggleNoParticipants() {
-      dispatch(updateEda({ periodId, patch: { noParticipants: !record.eda.noParticipants } }));
+      dispatch(updateEda({ providerId, periodId,  patch: { noParticipants: !record.eda.noParticipants } }));
     },
     updateProgramRecord(list, index, patch) {
       const current = record.eda[list] as Array<Record<string, unknown>>;
       const next = current.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item));
-      dispatch(updateEda({ periodId, patch: { [list]: next } as Partial<EdaSurveyDraft> }));
+      dispatch(updateEda({ providerId, periodId,  patch: { [list]: next } as Partial<EdaSurveyDraft> }));
     },
     toggleInstitutionalHour(index, value) {
       const current = record.eda.institutional[index];
@@ -174,39 +184,40 @@ export function useEdaSurvey(): EdaSurveySummary {
         ? current.programHours.filter((item) => item !== value)
         : [...current.programHours, value];
       const institutional = record.eda.institutional.map((item, itemIndex) => (itemIndex === index ? { ...item, programHours } : item));
-      dispatch(updateEda({ periodId, patch: { institutional } }));
+      dispatch(updateEda({ providerId, periodId,  patch: { institutional } }));
     },
     toggleCompletionSkip(index) {
       const completions = record.eda.completions.map((item, itemIndex) =>
         itemIndex === index ? { ...item, skipNoCompletions: !item.skipNoCompletions } : item,
       );
-      dispatch(updateEda({ periodId, patch: { completions } }));
+      dispatch(updateEda({ providerId, periodId,  patch: { completions } }));
     },
     toggleNonCompletionSkip(index) {
       const nonCompletions = record.eda.nonCompletions.map((item, itemIndex) =>
         itemIndex === index ? { ...item, skipReasons: !item.skipReasons } : item,
       );
-      dispatch(updateEda({ periodId, patch: { nonCompletions } }));
+      dispatch(updateEda({ providerId, periodId,  patch: { nonCompletions } }));
     },
     updateNonCompletionReason(index, key, value) {
       const nonCompletions = record.eda.nonCompletions.map((item, itemIndex) =>
         itemIndex === index ? { ...item, reasons: { ...item.reasons, [key]: value } } : item,
       );
-      dispatch(updateEda({ periodId, patch: { nonCompletions } }));
+      dispatch(updateEda({ providerId, periodId,  patch: { nonCompletions } }));
     },
     updateParticipant(index, patch) {
       const participants = record.eda.participants.map((person, item) => (item === index ? { ...person, ...patch } : person));
-      dispatch(updateEda({ periodId, patch: { participants } }));
+      dispatch(updateEda({ providerId, periodId,  patch: { participants } }));
     },
     updateParticipantDate(index, field, part, value) {
       const participants = record.eda.participants.map((person, item) =>
         item === index ? { ...person, [field]: { ...person[field], [part]: value } } : person,
       );
-      dispatch(updateEda({ periodId, patch: { participants } }));
+      dispatch(updateEda({ providerId, periodId,  patch: { participants } }));
     },
     addParticipant() {
       dispatch(
         updateEda({
+          providerId,
           periodId,
           patch: {
             noParticipants: false,
@@ -219,15 +230,15 @@ export function useEdaSurvey(): EdaSurveySummary {
       );
     },
     removeParticipant(index) {
-      dispatch(updateEda({ periodId, patch: { participants: record.eda.participants.filter((_, item) => item !== index) } }));
+      dispatch(updateEda({ providerId, periodId,  patch: { participants: record.eda.participants.filter((_, item) => item !== index) } }));
     },
     saveSubmission() {
-      dispatch(saveEdaDraft({ periodId }));
+      dispatch(saveEdaDraft({ providerId, periodId }));
       dispatch(showToast("EDA Survey saved."));
       navigate("/submissions");
     },
     saveAndContinue() {
-      dispatch(saveEdaDraft({ periodId }));
+      dispatch(saveEdaDraft({ providerId, periodId }));
       if (!isEdaSegmentValid(currentId, record.eda)) {
         setShowErrors(true);
         setError(
@@ -241,7 +252,7 @@ export function useEdaSurvey(): EdaSurveySummary {
       setError("");
       setShowErrors(false);
       const nextIndex = Math.min(segmentIndex + 1, EDA_SEGMENTS.length - 1);
-      dispatch(setEdaMaxStep({ periodId, step: nextIndex }));
+      dispatch(setEdaMaxStep({ providerId, periodId, step: nextIndex }));
       if (segmentIndex === EDA_SEGMENTS.length - 1) {
         navigate(`/submissions/${periodId}/eda/review`);
         return;

@@ -3,8 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { providersForPeriod } from "@/api/dashboardByPeriod";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { DEFAULT_PERIOD_ID, getElapsedQuarterMonths, getPeriodById, getPeriodDueDate } from "@/constants/periods";
+import { notifyStatusChange } from "@/lib/notifyStatus";
+import { resolveProviderId } from "@/lib/providerScope";
 import { canSubmitMonthlyPackage, documentList } from "@/lib/submissionDocuments";
-import { getPeriodSubmission, submitMonthlyPackage } from "@/store/submissionsSlice";
+import { getPeriodSubmission, getProviderPeriodStatus, submitMonthlyPackage } from "@/store/submissionsSlice";
 import { showToast } from "@/store/uiSlice";
 import type { SubmissionStatus } from "@/types/domain";
 import type { DocumentFillState, MonthlyPackageStatus, SubmissionDocumentKind } from "@/types/submissions";
@@ -27,6 +29,7 @@ export type MonthlySubmissionsSummary = {
   expandedId: string | null;
   toggle: (periodId: string) => void;
   editDocument: (periodId: string, kind: SubmissionDocumentKind) => void;
+  reviewDocument: (periodId: string, kind: SubmissionDocumentKind) => void;
   submitPackage: (periodId: string) => void;
 };
 
@@ -42,7 +45,12 @@ function dueLabel(year: number, month: number): string {
   return `Due ${MONTH_SHORT[due.getMonth()]} ${due.getDate()}`;
 }
 
-function providerStatusForPeriod(periodId: string, organizationName: string): SubmissionStatus {
+function providerStatusForPeriod(
+  periodId: string,
+  organizationName: string,
+  stored?: SubmissionStatus | null,
+): SubmissionStatus {
+  if (stored) return stored;
   return providersForPeriod(periodId).find((item) => item.name === organizationName)?.submissionStatus ?? "Not started";
 }
 
@@ -73,12 +81,14 @@ export function useMonthlySubmissions(): MonthlySubmissionsSummary {
   const elapsed = getElapsedQuarterMonths(year, month);
   const [expandedId, setExpandedId] = useState<string | null>(elapsed[0]?.periodId ?? null);
   const organizationName = identity?.organizationName ?? "Training provider";
+  const providerId = resolveProviderId(identity);
 
   const rows = useMemo(
     () =>
       elapsed.map((item) => {
-        const record = getPeriodSubmission(submissions, item.periodId);
-        const display = cardStatuses(record.status, providerStatusForPeriod(item.periodId, organizationName));
+        const record = getPeriodSubmission(submissions, item.periodId, providerId);
+        const stored = getProviderPeriodStatus(submissions, item.periodId, providerId)?.status ?? null;
+        const display = cardStatuses(record.status, providerStatusForPeriod(item.periodId, organizationName, stored));
         return {
           periodId: item.periodId,
           title: `${item.name} Monthly Submission`,
@@ -89,7 +99,7 @@ export function useMonthlySubmissions(): MonthlySubmissionsSummary {
           canSubmit: canSubmitMonthlyPackage(record) && record.status === "Action Needed",
         };
       }),
-    [elapsed, organizationName, submissions],
+    [elapsed, organizationName, providerId, submissions],
   );
 
   return {
@@ -104,10 +114,25 @@ export function useMonthlySubmissions(): MonthlySubmissionsSummary {
       if (kind === "eda-survey") navigate(`/submissions/${periodId}/eda/training-provider`);
       if (kind === "invoice") navigate(`/submissions/${periodId}/invoice`);
     },
+    reviewDocument(periodId, kind) {
+      if (kind === "technical-report") navigate(`/submissions/${periodId}/technical-report/review`);
+      if (kind === "eda-survey") navigate(`/submissions/${periodId}/eda/review`);
+      if (kind === "invoice") navigate(`/submissions/${periodId}/invoice/review`);
+    },
     submitPackage(periodId) {
-      const record = getPeriodSubmission(submissions, periodId);
+      const record = getPeriodSubmission(submissions, periodId, providerId);
       if (!canSubmitMonthlyPackage(record) || record.status !== "Action Needed") return;
-      dispatch(submitMonthlyPackage({ periodId }));
+      dispatch(submitMonthlyPackage({ providerId, periodId }));
+      const previous = getProviderPeriodStatus(submissions, periodId, providerId)?.status ?? null;
+      if (previous === "Missing/flagged" || previous === "Not started") {
+        notifyStatusChange(dispatch, {
+          providerId,
+          periodId,
+          status: "Awaiting review",
+          record,
+          previous,
+        });
+      }
       const row = rows.find((item) => item.periodId === periodId);
       dispatch(showToast(`${row?.title ?? "Monthly submission"} submitted.`));
     },

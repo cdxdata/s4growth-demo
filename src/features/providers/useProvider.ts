@@ -1,13 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { reportingApi } from "@/api/client";
 import { queryKeys } from "@/api/queryKeys";
+import { useAppSelector } from "@/app/hooks";
+import { getProviderPeriodStatus } from "@/store/submissionsSlice";
 import type { ActivityEvent, ChecklistItem, Contact, Provider } from "@/types/domain";
+
+export type ProviderTab = "overview" | "monthly";
 
 export type ProviderSummary = {
   isLoading: boolean;
   error: Error | null;
   provider: Provider | null;
+  tab: ProviderTab;
   checklist: ChecklistItem[];
   contacts: Contact[];
   activity: ActivityEvent[];
@@ -16,6 +22,7 @@ export type ProviderSummary = {
   canCompleteIntake: boolean;
   checklistSubtitle: string;
   goBack: () => void;
+  openTab: (tab: ProviderTab) => void;
   openIntake: () => void;
   openParticipants: () => void;
   openReview: () => void;
@@ -32,13 +39,25 @@ export function useProvider(): ProviderSummary {
     enabled: Number.isFinite(providerId),
   });
 
+  const [tab, setTab] = useState<ProviderTab>("overview");
+  const periodId = useAppSelector((state) => state.workspace.selectedPeriodId);
+  const storedStatus = useAppSelector((state) => getProviderPeriodStatus(state.submissions, periodId, providerId));
   const detail = query.data;
-  const completed = detail?.provider.submissionStatus === "Complete";
+  const provider = detail?.provider
+    ? {
+        ...detail.provider,
+        submissionStatus: storedStatus?.status ?? detail.provider.submissionStatus,
+        completedOn: storedStatus?.completedOn ?? detail.provider.completedOn,
+        statusChangedOn: storedStatus?.statusChangedOn ?? detail.provider.statusChangedOn,
+      }
+    : null;
+  const completed = provider?.submissionStatus === "Complete";
 
   return {
     isLoading: query.isLoading,
     error: query.error instanceof Error ? query.error : query.error ? new Error("Failed to load subawardee") : null,
-    provider: detail?.provider ?? null,
+    provider,
+    tab,
     checklist: detail?.checklist ?? [],
     contacts: detail?.contacts ?? [],
     activity: detail?.activity ?? [],
@@ -53,7 +72,8 @@ export function useProvider(): ProviderSummary {
           ? `${detail.provider.submissionStatus} for this reporting cycle.`
           : "Monthly reporting items for this organization.",
     goBack: () => navigate("/"),
-    openIntake: () => navigate("/intake"),
+    openTab: setTab,
+    openIntake: () => setTab("monthly"),
     openParticipants: () => navigate("/participants"),
     openReview: () => navigate("/review"),
     openNudges: () => navigate("/nudges"),

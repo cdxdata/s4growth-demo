@@ -1,5 +1,5 @@
 import { Header } from "@/components/layout/Header";
-import { Panel } from "@/components/ui/Panel";
+import { EdaReviewSections } from "@/components/ui/FormReview";
 import { useEdaReview } from "@/features/submissions/useEdaReview";
 
 export function EdaReviewPage() {
@@ -19,32 +19,19 @@ export function EdaReviewPage() {
           </div>
         </div>
         <p className="eda-review-lead">
-          Check each section before you submit. You can edit a page without losing the rest of the form.
+          Check each of the 10 forms before you finish. You can edit a page without losing the rest of the survey.
         </p>
-        {summary.sections.map((section) => (
-          <Panel key={section.id} className="eda-review-card">
-            <div className="eda-review-head">
-              <h2>{section.title}</h2>
-              <button type="button" className="btn secondary" onClick={() => summary.editSection(section.id)}>
-                Edit
-              </button>
-            </div>
-            <dl className="eda-review-grid">
-              {section.rows.map((row, index) => (
-                <div key={`${section.id}-${index}-${row.label}`} className={row.value === "Program section" ? "eda-review-program" : undefined}>
-                  <dt>{row.label}</dt>
-                  <dd>{row.value === "Program section" ? "" : row.value}</dd>
-                </div>
-              ))}
-            </dl>
-          </Panel>
-        ))}
+        <EdaReviewSections
+          sections={summary.sections}
+          sectionReviews={summary.sectionReviews}
+          onEdit={summary.editSection}
+        />
         <div className="form-foot eda-review-foot">
           <button type="button" className="btn secondary" onClick={summary.goBack}>
             Save Submission
           </button>
-          <button type="button" className="btn primary" disabled={!summary.canSubmit} onClick={summary.submit}>
-            Submit
+          <button type="button" className="btn primary" onClick={summary.done}>
+            Done
           </button>
         </div>
       </div>

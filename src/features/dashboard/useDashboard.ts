@@ -84,6 +84,7 @@ export type DashboardSummary = {
 export function useDashboard(): DashboardSummary {
   const navigate = useNavigate();
   const periodId = useAppSelector((state) => state.workspace.selectedPeriodId);
+  const storedStatuses = useAppSelector((state) => state.submissions.providerStatus[periodId] ?? {});
   const period = getPeriodById(periodId);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const query = useQuery({
@@ -101,23 +102,23 @@ export function useDashboard(): DashboardSummary {
 
   const rows = useMemo(
     () =>
-      (data?.providers ?? []).map((provider) => ({
-        id: provider.id,
-        name: provider.name,
-        backbone: provider.backbone,
-        category: "Training provider" as const,
-        submissionStatus: provider.submissionStatus,
-        completedDate: formatCompletedDate(
-          provider.submissionStatus === "Complete" ? provider.completedOn : null,
-        ),
-        timelineStatus: formatTimelineStatus(
-          provider.submissionStatus === "Complete" ? provider.completedOn : null,
-          provider.dueOn,
-          asOf,
-        ),
-        lastNotified: formatLastNotified(provider.statusChangedOn, provider.submissionStatus),
-      })),
-    [asOf, data?.providers],
+      (data?.providers ?? []).map((provider) => {
+        const stored = storedStatuses[String(provider.id)];
+        const submissionStatus = stored?.status ?? provider.submissionStatus;
+        const completedOn = stored?.completedOn ?? provider.completedOn;
+        const statusChangedOn = stored?.statusChangedOn ?? provider.statusChangedOn;
+        return {
+          id: provider.id,
+          name: provider.name,
+          backbone: provider.backbone,
+          category: "Training provider" as const,
+          submissionStatus,
+          completedDate: formatCompletedDate(submissionStatus === "Complete" ? completedOn : null),
+          timelineStatus: formatTimelineStatus(submissionStatus === "Complete" ? completedOn : null, provider.dueOn, asOf),
+          lastNotified: formatLastNotified(statusChangedOn, submissionStatus),
+        };
+      }),
+    [asOf, data?.providers, storedStatuses],
   );
 
   const statusFilters = useMemo<StatusFilterOption[]>(() => {

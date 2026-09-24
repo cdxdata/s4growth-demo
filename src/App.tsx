@@ -7,6 +7,7 @@ import { LoginPage } from "@/features/auth/LoginPage";
 import { RequireAuth } from "@/features/auth/RequireAuth";
 import { HomePage } from "@/features/home/HomePage";
 import { IntakePage } from "@/features/intake/IntakePage";
+import { DocumentReviewPage } from "@/features/submissions/DocumentReviewPage";
 import { EdaReviewPage } from "@/features/submissions/EdaReviewPage";
 import { EdaSurveyPage } from "@/features/submissions/EdaSurveyPage";
 import { InvoicePage } from "@/features/submissions/InvoicePage";
@@ -40,10 +41,12 @@ export function App() {
           <Route path="/providers/:id" element={<ProviderPage />} />
           <Route path="/intake" element={<ManagerIntakePage />} />
           <Route path="/submissions" element={<MonthlySubmissionsPage />} />
+          <Route path="/submissions/:periodId/technical-report/review" element={<DocumentReviewPage kind="technical-report" />} />
           <Route path="/submissions/:periodId/technical-report" element={<IntakePage />} />
           <Route path="/submissions/:periodId/eda" element={<EdaSurveyPage />} />
           <Route path="/submissions/:periodId/eda/review" element={<EdaReviewPage />} />
           <Route path="/submissions/:periodId/eda/:segmentId" element={<EdaSurveyPage />} />
+          <Route path="/submissions/:periodId/invoice/review" element={<DocumentReviewPage kind="invoice" />} />
           <Route path="/submissions/:periodId/invoice" element={<InvoicePage />} />
           <Route path="/participants" element={<ParticipantsPage />} />
           <Route path="/review" element={<ReviewPage />} />

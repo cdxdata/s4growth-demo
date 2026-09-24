@@ -273,3 +273,8 @@ export function participantSummary(person: EdaParticipant): string {
   const dates = [formatSplitDate(person.trainingStart), formatSplitDate(person.trainingEnd)].filter(Boolean).join(" – ");
   return [name, person.trainingProgram, dates].filter(Boolean).join(" · ");
 }
+
+export function participantsInTraining(draft: EdaSurveyDraft): number {
+  if (draft.noParticipants) return 0;
+  return draft.participants.filter((person) => person.completedTraining === "No").length;
+}
