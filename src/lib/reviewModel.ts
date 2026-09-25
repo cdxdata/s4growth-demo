@@ -1,13 +1,15 @@
 import { EDA_SEGMENT_IDS, EDA_SEGMENTS, isEdaSegmentId, type EdaSegmentId } from "@/constants/eda";
 import { MONTH_NAMES, getPeriodById, getPeriodDueIso } from "@/constants/periods";
 import { edaReviewSections } from "@/lib/edaReviewSections";
-import { formatTimelineStatus } from "@/lib/reportingDates";
-import { attachmentHref, formatFileSize, technicalNarratives } from "@/lib/technicalReport";
+import { asOfDateForPeriod, formatTimelineStatus } from "@/lib/reportingDates";
+import { attachmentDownloadName, attachmentHref, formatFileSize, technicalNarratives } from "@/lib/technicalReport";
 import type { IntakeDraft, SubmissionStatus, TestimonialFile } from "@/types/domain";
 import type {
   EdaFormReviewState,
   EdaSurveyDraft,
+  FieldMark,
   FormReviewState,
+  FormScore,
   InvoiceDraft,
   PackageReview,
   PeriodSubmissionRecord,
@@ -110,10 +112,17 @@ function testimonialFiles(draft: IntakeDraft): TestimonialFile[] {
   return draft.testimonial.files.filter((file): file is TestimonialFile => Boolean(file?.name));
 }
 
-export function technicalReviewFields(draft: IntakeDraft): ReviewField[] {
+export type ReviewFieldContext = {
+  month: string;
+  providerName: string;
+};
+
+export function technicalReviewFields(draft: IntakeDraft, context?: ReviewFieldContext): ReviewField[] {
   const story = technicalNarratives(draft);
   const files = testimonialFiles(draft);
   const media = draft.mediaLink.available === "None" ? "None" : draft.mediaLink.detail;
+  const month = context?.month ?? "Month";
+  const providerName = context?.providerName || "Training provider";
   return [
     { id: "technical.challenges", label: "Challenges this month", value: line(story.challenges) },
     { id: "technical.plans", label: "Plan to address the challenges listed in 02", value: line(story.plan) },
@@ -122,9 +131,11 @@ export function technicalReviewFields(draft: IntakeDraft): ReviewField[] {
       id: "technical.testimonial",
       label: "Participant testimonial",
       value: draft.testimonial.available === "None" ? "None" : files.length ? `${files.length} attachment${files.length === 1 ? "" : "s"}` : "Yes",
-      attachments: files.map((file) => ({
+      attachments: files.map((file, index) => ({
         name: file.name,
         href: attachmentHref(file),
+        downloadName: attachmentDownloadName(month, providerName, file.name, index, files.length),
+        type: file.type,
         sizeLabel: formatFileSize(file.size),
       })),
     },
@@ -168,14 +179,28 @@ export function reviewSignature(review: PackageReview): string {
   });
 }
 
-export function fieldsForForm(kind: ReviewFormId, record: PeriodSubmissionRecord): ReviewField[] {
-  if (kind === "technical-report") return technicalReviewFields(record.technical);
+export function fieldsForForm(kind: ReviewFormId, record: PeriodSubmissionRecord, context?: ReviewFieldContext): ReviewField[] {
+  const providerName = context?.providerName || record.eda.trainingProvider || "Training provider";
+  if (kind === "technical-report") return technicalReviewFields(record.technical, { month: context?.month ?? "Month", providerName });
   if (kind === "invoice") return invoiceReviewFields(record.invoice);
   return edaReviewFields(record.eda);
 }
 
 export function scoredFormCount(review: PackageReview): number {
   return reviewScoreables(review).filter((item) => item.score).length;
+}
+
+export function passIfAllFieldsGood(
+  score: FormScore | null,
+  fields: ReviewField[],
+  marks: Record<string, FieldMark>,
+): { score: FormScore | null; fieldMarks: Record<string, FieldMark> } {
+  if (score !== "Flagged") return { score, fieldMarks: marks };
+  const markable = fields.filter((field) => field.id);
+  if (!markable.length || markable.some((field) => marks[field.id] !== "good")) {
+    return { score, fieldMarks: marks };
+  }
+  return { score: "Passed", fieldMarks: {} };
 }
 
 export function statusAfterSaveLater(review: PackageReview): SubmissionStatus | null {
@@ -212,6 +237,28 @@ export function flaggedAreas(record: PeriodSubmissionRecord): string[] {
   return areas;
 }
 
+export function emailSubjectForStatus(status: SubmissionStatus, month: string): string {
+  if (status === "Missing/flagged") return `Action needed: ${month} Steps4Growth report`;
+  if (status === "Not started") return `Not Started: ${month} Steps4Growth report`;
+  return `${status}: ${month} Steps4Growth report`;
+}
+
+export function buildReviewEmailBody(input: {
+  toName: string;
+  dueDate: string;
+  timelineStatus: string;
+  paragraph: string;
+}): string {
+  return [
+    `Hello ${input.toName},`,
+    "",
+    input.paragraph,
+    "",
+    `Current due date: ${input.dueDate}`,
+    `Status: ${input.timelineStatus}`,
+  ].join("\n");
+}
+
 export function buildStatusEmail(input: {
   providerName: string;
   periodId: string;
@@ -220,40 +267,72 @@ export function buildStatusEmail(input: {
 }): { subject: string; body: string } {
   const period = getPeriodById(input.periodId);
   const month = MONTH_NAMES[(period.month ?? 9) - 1];
+  const dueOn = getPeriodDueIso(period);
   const due = period.dueDateLong ?? `${month} 17, ${period.year}`;
-  const timeline = formatTimelineStatus(null, getPeriodDueIso(period));
-
-  if (input.status === "Missing/flagged") {
-    const areas = flaggedAreas(input.record);
-    return {
-      subject: `Action needed: ${month} Steps4Growth report`,
-      body: [
-        `Hello ${input.providerName},`,
-        "",
-        `The ${month} submission requires attention in the following areas:`,
-        ...areas.map((area) => area),
-        "",
-        `Please make corrections so ${SYSTEM_LEAD} can complete monthly review.`,
-        "",
-        `Current due date: ${due}`,
-        `Timeline status: ${timeline}`,
-      ].join("\n"),
-    };
-  }
+  const timeline = formatTimelineStatus(null, dueOn, asOfDateForPeriod(dueOn));
 
   return {
-    subject: `${month} Steps4Growth report: ${input.status}`,
-    body: [
-      `Hello ${input.providerName},`,
-      "",
-      `The ${month} submission status is now ${input.status}.`,
-      "",
-      `Current due date: ${due}`,
-      `Timeline status: ${timeline}`,
-    ].join("\n"),
+    subject: emailSubjectForStatus(input.status, month),
+    body: buildReviewEmailBody({
+      toName: input.providerName,
+      dueDate: due,
+      timelineStatus: timeline,
+      paragraph: `Your ${month} submission status is marked ${input.status}.`,
+    }),
   };
 }
 
 export function documentKindToForm(kind: SubmissionDocumentKind): ReviewFormId {
   return kind;
+}
+
+function fieldValueKey(field: ReviewField): string {
+  const files = (field.attachments ?? []).map((file) => `${file.name}:${file.sizeLabel ?? ""}:${file.href ?? ""}`).join(",");
+  return `${field.value}\n${files}`;
+}
+
+export function reviewValueSnapshot(record: PeriodSubmissionRecord): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const formId of REVIEW_FORMS) {
+    for (const field of fieldsForForm(formId, record)) {
+      values[field.id] = fieldValueKey(field);
+    }
+  }
+  return values;
+}
+
+export function changedReviewFieldIds(record: PeriodSubmissionRecord): string[] {
+  const snapshot = record.reviewFieldSnapshot;
+  if (!snapshot) return [];
+  const current = reviewValueSnapshot(record);
+  const ids = new Set([...Object.keys(current), ...Object.keys(snapshot)]);
+  return [...ids].filter((id) => current[id] !== snapshot[id]);
+}
+
+export function unmarkChangedFields(review: PackageReview, changedIds: string[]): PackageReview {
+  if (!changedIds.length) return review;
+  const next = normalizePackageReview(review);
+  let cleared = false;
+  for (const id of changedIds) {
+    if (next["technical-report"].fieldMarks[id]) {
+      delete next["technical-report"].fieldMarks[id];
+      cleared = true;
+    }
+    if (next.invoice.fieldMarks[id]) {
+      delete next.invoice.fieldMarks[id];
+      cleared = true;
+    }
+    const sectionId = edaSectionFromFieldId(id);
+    if (sectionId && next["eda-survey"].sections[sectionId]?.fieldMarks[id]) {
+      delete next["eda-survey"].sections[sectionId].fieldMarks[id];
+      cleared = true;
+    }
+  }
+  if (!cleared) return review;
+  next["eda-survey"] = {
+    ...next["eda-survey"],
+    fieldMarks: mergeEdaFieldMarks(next["eda-survey"].sections),
+    score: deriveEdaScore(next["eda-survey"].sections),
+  };
+  return next;
 }

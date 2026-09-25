@@ -20,7 +20,7 @@ export function TrainingProviderHomePage() {
           />
           <div className="stat">
             <div className="label">{summary.monthName} Submission Status</div>
-            <div style={{ marginTop: 10 }}>
+            <div className="stat-status">
               {summary.submissionStatus ? <SubmissionBadge status={summary.submissionStatus} /> : "—"}
             </div>
           </div>

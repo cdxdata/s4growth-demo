@@ -53,9 +53,15 @@ function loadDirectory(): DirectoryState {
   if (typeof window === "undefined") return seeded;
   try {
     const raw = window.localStorage.getItem(DIRECTORY_KEY);
-    if (!raw) return seeded;
+    if (!raw) {
+      persistDirectory(seeded);
+      return seeded;
+    }
     const parsed = JSON.parse(raw) as DirectoryState & { version?: number };
-    if (parsed.version !== DIRECTORY_VERSION || !parsed.entities) return seeded;
+    if (parsed.version !== DIRECTORY_VERSION || !parsed.entities) {
+      persistDirectory(seeded);
+      return seeded;
+    }
     return {
       entities: parsed.entities,
       representatives: parsed.representatives ?? [],
@@ -311,6 +317,25 @@ export const directoryDb = {
       email: entity.email,
       participantsEmployed: entity.employedCount ?? 0,
     });
+  },
+
+  getRepresentativesForProvider(providerId: number): Representative[] {
+    const entity = state.entities.find((item) => item.role === "training-provider" && item.orgId === providerId);
+    if (!entity) return [];
+    return clone(repsFor(entity.id));
+  },
+
+  getProviderContact(providerId: number): { name: string; email: string } | null {
+    const entity = state.entities.find((item) => item.role === "training-provider" && item.orgId === providerId);
+    if (entity) return clone({ name: entity.name, email: entity.email });
+    const org = TRAINING_PROVIDERS.find((item) => item.id === providerId);
+    return org ? { name: org.name, email: `${org.name.toLowerCase().replace(/[^a-z0-9]+/g, ".")}@providers.s4g.test` } : null;
+  },
+
+  resetToSeed() {
+    state = createInitialState();
+    persistDirectory(state);
+    return clone(state);
   },
 
   getReviewRecipients(providerId: number): { providerName: string; recipients: string[] } {

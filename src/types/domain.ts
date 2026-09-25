@@ -36,12 +36,6 @@ export type ChecklistItem = {
   ok: boolean;
 };
 
-export type Contact = {
-  initials: string;
-  name: string;
-  role: string;
-};
-
 export type ActivityEvent = {
   icon: string;
   title: string;
@@ -122,12 +116,14 @@ export type NudgeFollowUp = {
   id: string;
   label: string;
   text: string;
-  ok: boolean;
+  status: SubmissionStatus;
 };
 
 export type NudgeMessage = {
   to: string;
   cc: string;
+  toEmail: string;
+  ccEmails: string[];
   subject: string;
   body: string;
 };
@@ -182,7 +178,6 @@ export type QuarterlyDraft = {
 export type ProviderDetail = {
   provider: Provider;
   checklist: ChecklistItem[];
-  contacts: Contact[];
   activity: ActivityEvent[];
   openGaps: number;
 };

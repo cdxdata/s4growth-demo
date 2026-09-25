@@ -1,11 +1,10 @@
 import { directoryDb } from "@/api/directoryDb";
 import type { AppDispatch } from "@/app/store";
-import { DEMO_TODAY } from "@/lib/reportingDates";
 import { buildStatusEmail } from "@/lib/reviewModel";
 import { recordMail, setProviderPeriodStatus } from "@/store/submissionsSlice";
 import { showToast } from "@/store/uiSlice";
 import type { SubmissionStatus } from "@/types/domain";
-import type { PeriodSubmissionRecord } from "@/types/submissions";
+import type { PeriodSubmissionRecord, ReviewMail } from "@/types/submissions";
 
 export function notifyStatusChange(
   dispatch: AppDispatch,
@@ -16,6 +15,7 @@ export function notifyStatusChange(
     record: PeriodSubmissionRecord;
     previous?: SubmissionStatus | null;
     force?: boolean;
+    source?: ReviewMail["source"];
   },
 ) {
   if (input.previous === input.status && !input.force) return;
@@ -37,14 +37,16 @@ export function notifyStatusChange(
   });
   dispatch(
     recordMail({
-      id: `mail-${Date.now().toString(36)}`,
+      id: `sim-${Date.now()}`,
       periodId: input.periodId,
       providerId: input.providerId,
       recipients,
       subject: message.subject,
       body: message.body,
-      sentOn: DEMO_TODAY,
+      sentOn: new Date().toLocaleString(),
       status: input.status,
+      kind: "status",
+      source: input.source ?? "project-manager",
     }),
   );
   dispatch(showToast(`Email sent to ${recipients.length} recipient${recipients.length === 1 ? "" : "s"}.`));

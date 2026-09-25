@@ -63,22 +63,46 @@ function dueInSpan(days: number): string {
  * TODO: This timeline-status logic belongs to the backend, but we use it here
  * so that the data presentation in the table is meaningful.
  */
+export function timelineStatusDays(
+  completedOn: string | null,
+  dueOn: string,
+  asOfIso: string = DEMO_TODAY,
+): number {
+  if (completedOn) return diffDays(dueOn, completedOn);
+  return -diffDays(asOfIso, dueOn);
+}
+
 export function formatTimelineStatus(
   completedOn: string | null,
   dueOn: string,
   asOfIso: string = DEMO_TODAY,
 ): string {
-  if (completedOn) {
-    const delta = diffDays(dueOn, completedOn);
-    if (delta === 0) return "on time";
-    if (delta < 0) return `${compactSpan(-delta)} early`;
-    return `${compactSpan(delta)} late`;
-  }
+  if (completedOn) return formatTimelineFromDays(timelineStatusDays(completedOn, dueOn, asOfIso));
 
   const untilDue = diffDays(asOfIso, dueOn);
   if (untilDue > 0) return dueInSpan(untilDue);
   if (untilDue === 0) return "due today";
   return `${compactSpan(-untilDue)} late`;
+}
+
+export function formatTimelineFromDays(days: number): string {
+  const whole = Math.round(days);
+  if (whole === 0) return "on time";
+  if (whole < 0) return `${compactSpan(-whole)} early`;
+  return `${compactSpan(whole)} late`;
+}
+
+export function formatDayCount(days: number): string {
+  const whole = Math.abs(Math.round(days));
+  return whole === 1 ? "1 day" : `${whole} days`;
+}
+
+export function medianNumber(values: number[]): number | null {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 1) return sorted[mid];
+  return (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
 /**

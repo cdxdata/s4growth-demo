@@ -1,59 +1,65 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { reportingApi } from "@/api/client";
 import { queryKeys } from "@/api/queryKeys";
-import { useAppDispatch } from "@/app/hooks";
-import { showToast } from "@/store/uiSlice";
-import type { ReviewFlag } from "@/types/domain";
+import { useAppSelector } from "@/app/hooks";
+import type { SubmissionStatus } from "@/types/domain";
+
+const REVIEW_QUEUE_STATUSES = new Set<SubmissionStatus>(["In review", "Awaiting review"]);
+
+export type ReviewQueueItem = {
+  id: number;
+  label: string;
+  text: string;
+  status: SubmissionStatus;
+};
 
 export type ReviewSummary = {
   isLoading: boolean;
   error: Error | null;
-  stats: Array<{ label: string; value: string | number; note: string; tone?: "warn" | "bad" | "" }>;
-  flags: ReviewFlag[];
-  handleFlag: (flag: ReviewFlag) => void;
+  queue: ReviewQueueItem[];
+  openMonthly: (id: number) => void;
 };
 
 export function useReview(): ReviewSummary {
   const navigate = useNavigate();
-  const dispatch = useAppDispatch();
-  const queryClient = useQueryClient();
-  const query = useQuery({
-    queryKey: queryKeys.review,
-    queryFn: reportingApi.getReview,
-  });
-  const confirm = useMutation({
-    mutationFn: reportingApi.confirmCompletionTotal,
-    async onSuccess() {
-      dispatch(showToast("Completion variance marked as reviewer-confirmed."));
-      await queryClient.invalidateQueries();
-    },
+  const periodId = useAppSelector((state) => state.workspace.selectedPeriodId);
+  const storedStatuses = useAppSelector((state) => state.submissions.providerStatus[periodId] ?? {});
+  const dashboardQuery = useQuery({
+    queryKey: queryKeys.dashboard(periodId),
+    queryFn: () => reportingApi.getDashboard(periodId),
   });
 
-  const data = query.data;
+  const queue = useMemo(
+    () =>
+      (dashboardQuery.data?.providers ?? []).flatMap((provider) => {
+        const status = storedStatuses[String(provider.id)]?.status ?? provider.submissionStatus;
+        if (!REVIEW_QUEUE_STATUSES.has(status)) return [];
+        return [
+          {
+            id: provider.id,
+            label: provider.name,
+            text: provider.backbone ? `via ${provider.backbone}` : provider.program,
+            status,
+          },
+        ];
+      }),
+    [dashboardQuery.data?.providers, storedStatuses],
+  );
 
   return {
-    isLoading: query.isLoading,
-    error: query.error instanceof Error ? query.error : query.error ? new Error("Failed to load review queue") : null,
-    stats: [
-      { label: "Open flags", value: data?.stats.openFlags ?? "—", note: "Across 3 providers", tone: "bad" },
-      { label: "Missing information", value: data?.stats.missingInformation ?? "—", note: "Required fields or dates", tone: "warn" },
-      { label: "Reported variances", value: data?.stats.reportedVariances ?? "—", note: "Requires confirmation", tone: "warn" },
-      { label: "Resolved this month", value: data?.stats.resolvedThisMonth ?? "—", note: "Reviewer-confirmed" },
-    ],
-    flags: data?.flags ?? [],
-    handleFlag(flag) {
-      if (flag.action === "confirm-total") {
-        confirm.mutate();
-        return;
-      }
-      if (flag.action === "view-record") {
-        navigate("/participants");
-        return;
-      }
-      if (flag.action === "preview-nudge") {
-        navigate("/nudges");
-      }
+    isLoading: dashboardQuery.isLoading && !dashboardQuery.data,
+    error:
+      dashboardQuery.error instanceof Error
+        ? dashboardQuery.error
+        : dashboardQuery.error
+          ? new Error("Failed to load review queue")
+          : null,
+    queue,
+    openMonthly(id) {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      navigate(`/providers/${id}?tab=monthly`);
     },
   };
 }
