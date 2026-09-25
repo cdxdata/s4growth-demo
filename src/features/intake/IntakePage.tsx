@@ -3,11 +3,13 @@ import { Header } from "@/components/layout/Header";
 import { FieldMarks } from "@/components/ui/FieldMarks";
 import { Panel } from "@/components/ui/Panel";
 import { useIntake } from "@/features/intake/useIntake";
+import { COMMUNITY_COLLEGE_SCHEMA } from "@/config/intakeSchemas";
 import { ADD_KEYWORD, keywordOptions } from "@/lib/technicalReport";
 import type { KeywordRow, TestimonialFile } from "@/types/domain";
 
 export function IntakePage() {
   const summary = useIntake();
+  const schema = COMMUNITY_COLLEGE_SCHEMA;
   const challengeInvalid = summary.showErrors && summary.form.challenges.some((row) => !row.keyword || (row.keyword !== "None" && !row.detail.trim()));
   const planInvalid = summary.showErrors && summary.form.plans.some((row) => !row.plan.trim());
   const achievementInvalid = summary.showErrors && summary.form.achievements.some((row) => !row.keyword || (row.keyword !== "None" && !row.detail.trim()));
@@ -23,7 +25,7 @@ export function IntakePage() {
         </button>
         {summary.error ? <div className="notice error">{summary.error}</div> : null}
 
-        <Section num="01">
+        <Section num={schema.sections.eda.number}>
           <button type="button" className={`tech-eda-badge${summary.edaFilled ? " is-filled" : " is-missing"}`} onClick={summary.goEda}>
             <span className="tech-eda-badge-icon" aria-hidden="true">
               {summary.edaFilled ? "✓" : "!"}
@@ -32,7 +34,7 @@ export function IntakePage() {
           </button>
         </Section>
 
-        <Section num="02" title="Challenges this month" invalid={challengeInvalid} mark={summary.showMarks ? summary.fieldMarks["technical.challenges"] : undefined}>
+        <Section num={schema.sections.challenges.number} title={schema.sections.challenges.title} invalid={challengeInvalid} mark={summary.showMarks ? summary.fieldMarks["technical.challenges"] : undefined}>
           {summary.form.challenges.map((row, index) => (
             <KeywordRowFields
               key={`challenge-${index}`}
@@ -51,7 +53,7 @@ export function IntakePage() {
           </button>
         </Section>
 
-        <Section num="03" title="Plan to address the challenges listed in 02" invalid={planInvalid} mark={summary.showMarks ? summary.fieldMarks["technical.plans"] : undefined}>
+        <Section num={schema.sections.plans.number} title={schema.sections.plans.title} invalid={planInvalid} mark={summary.showMarks ? summary.fieldMarks["technical.plans"] : undefined}>
           <div className="tech-plan-table-wrap">
             <table className="tech-plan-table">
               <thead>
@@ -99,7 +101,7 @@ export function IntakePage() {
           </button>
         </Section>
 
-        <Section num="04" title="This month's achievement" invalid={achievementInvalid} mark={summary.showMarks ? summary.fieldMarks["technical.achievements"] : undefined}>
+        <Section num={schema.sections.achievements.number} title={schema.sections.achievements.title} invalid={achievementInvalid} mark={summary.showMarks ? summary.fieldMarks["technical.achievements"] : undefined}>
           {summary.form.achievements.map((row, index) => (
             <KeywordRowFields
               key={`achievement-${index}`}
@@ -117,7 +119,7 @@ export function IntakePage() {
           </button>
         </Section>
 
-        <Section num="05" title="Participant testimonial available?" invalid={testimonialInvalid} mark={summary.showMarks ? summary.fieldMarks["technical.testimonial"] : undefined}>
+        <Section num={schema.sections.testimonial.number} title={schema.sections.testimonial.title} invalid={testimonialInvalid} mark={summary.showMarks ? summary.fieldMarks["technical.testimonial"] : undefined}>
           <div className="tech-keyword-row">
             <div className="field">
               <label>Available</label>
@@ -161,7 +163,7 @@ export function IntakePage() {
           </div>
         </Section>
 
-        <Section num="06" title="Photo/video/article link" invalid={mediaInvalid} mark={summary.showMarks ? summary.fieldMarks["technical.mediaLink"] : undefined}>
+        <Section num={schema.sections.media.number} title={schema.sections.media.title} invalid={mediaInvalid} mark={summary.showMarks ? summary.fieldMarks["technical.mediaLink"] : undefined}>
           <div className="tech-keyword-row">
             <div className="field">
               <label>Available</label>
