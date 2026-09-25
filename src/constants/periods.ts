@@ -113,6 +113,19 @@ export function getPeriodDueIso(period: ReportingPeriod): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+export function getPreviousPeriod(period: ReportingPeriod): ReportingPeriod | null {
+  if (period.kind === "quarterly") {
+    const previousQuarter = (period.quarter ?? 2) - 1;
+    if (previousQuarter < 2) return null;
+    return REPORTING_PERIODS.find((item) => item.id === `${period.year}-q${previousQuarter}`) ?? null;
+  }
+  const month = period.month ?? 1;
+  const year = month === 1 ? period.year - 1 : period.year;
+  const previousMonth = month === 1 ? 12 : month - 1;
+  const id = `${year}-${String(previousMonth).padStart(2, "0")}`;
+  return REPORTING_PERIODS.find((item) => item.id === id) ?? null;
+}
+
 export function getPreviousBaselineName(period: ReportingPeriod): string {
   if (period.kind === "quarterly") {
     const previousQuarter = (period.quarter ?? 2) - 1;

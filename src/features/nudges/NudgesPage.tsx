@@ -7,32 +7,51 @@ import { useNudges } from "@/features/nudges/useNudges";
 
 export function NudgesPage() {
   const summary = useNudges();
+  const selected = summary.followUp.find((item) => item.id === summary.selectedId);
 
   return (
     <QueryState isLoading={summary.isLoading} error={summary.error}>
       <Header title="Smart nudges" subtitle="Clear follow-up, directed to the people best positioned to respond." />
-      <div className="grid two">
-        <Panel>
-          <Panel.Head>
+      <section className="nudge-workspace">
+        <div className="nudge-list">
+          <div className="panel-head">
             <Panel.Title title="Recommended follow-up" subtitle="Based on missing items and reporting due date" />
-            <Status tone="late">{summary.overdueCount} overdue</Status>
-          </Panel.Head>
-          <div className="checklist">
-            {summary.followUp.map((item) => (
-              <CheckItem key={item.id} ok={item.ok} label={item.label} text={item.text} />
-            ))}
+            {summary.timelineStatus ? (
+              <Status tone={summary.timelineStatus.includes("late") ? "late" : "review"}>{summary.timelineStatus}</Status>
+            ) : null}
           </div>
-        </Panel>
-        <Panel>
-          <Panel.Head>
-            <Panel.Title title="Reminder preview" subtitle="Email delivery is safely simulated for this demo." />
-          </Panel.Head>
+          <div className="checklist">
+            {summary.followUp.length ? (
+              summary.followUp.map((item) => (
+                <CheckItem
+                  key={item.id}
+                  label={item.label}
+                  text={item.text}
+                  status={item.status}
+                  selected={item.id === summary.selectedId}
+                  onSelect={() => summary.selectFollowUp(item.id)}
+                />
+              ))
+            ) : (
+              <div className="empty-inline">
+                No subawardees need follow-up this month.
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="nudge-preview">
+          <div className="panel-head">
+            <Panel.Title
+              title="Reminder preview"
+              subtitle={selected ? `Email for ${selected.label}` : "Select a subawardee to preview the reminder."}
+            />
+          </div>
           {summary.message ? (
             <div className="message">
               <div className="to">
                 <b>To:</b> {summary.message.to}
                 <br />
-                <span style={{ color: "var(--muted)" }}>
+                <span className="nudge-cc">
                   <b>CC:</b> {summary.message.cc}
                 </span>
               </div>
@@ -51,19 +70,24 @@ export function NudgesPage() {
                   <br />
                   <b>{summary.sent.organization}</b> · {summary.sent.recipient} · {summary.sent.timestamp}
                   <br />
-                  <span style={{ fontSize: 11 }}>Status: Simulated sent. Reloading the page will keep this record.</span>
+                  <span className="success-note">Status: Simulated sent. Reloading the page will keep this record.</span>
                 </div>
               ) : null}
             </div>
-          ) : null}
-        </Panel>
-      </div>
+          ) : (
+            <div className="empty-inline">
+              Select a recommended follow-up to see the reminder.
+            </div>
+          )}
+        </div>
+      </section>
       <Panel className="outbox">
         <Panel.Head>
           <Panel.Title title="Notification outbox" subtitle="Persistent history of reminders and review-status messages" />
           <Status tone={summary.outbox.length ? "complete" : "draft"}>{summary.outbox.length} logged</Status>
         </Panel.Head>
         {summary.outbox.length ? (
+          <div className="table-scroll">
           <table>
             <thead>
               <tr>
@@ -84,8 +108,9 @@ export function NudgesPage() {
               ))}
             </tbody>
           </table>
+          </div>
         ) : (
-          <div className="empty-inline" style={{ padding: 20 }}>Sent reminders will appear here.</div>
+          <div className="empty-inline">Sent reminders will appear here.</div>
         )}
       </Panel>
     </QueryState>

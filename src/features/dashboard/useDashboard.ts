@@ -1,18 +1,29 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { providersForPeriod } from "@/api/dashboardByPeriod";
 import { reportingApi } from "@/api/client";
 import { queryKeys } from "@/api/queryKeys";
 import { useAppSelector } from "@/app/hooks";
 import { NETWORK_COUNTS } from "@/constants/organizations";
-import { getPeriodById, getPeriodDueIso, getCurrentBaselineName, getPreviousBaselineName } from "@/constants/periods";
+import {
+  getCurrentBaselineName,
+  getPeriodById,
+  getPeriodDueIso,
+  getPreviousBaselineName,
+  getPreviousPeriod,
+} from "@/constants/periods";
 import {
   asOfDateForPeriod,
   formatCompletedDate,
+  formatDayCount,
   formatLastNotified,
   formatTimelineStatus,
+  medianNumber,
+  timelineStatusDays,
 } from "@/lib/reportingDates";
-import { SUBMISSION_STATUSES, type ActivityEvent, type ImpactMetric, type ImpactMetricId, type SubmissionStatus } from "@/types/domain";
+import { SUBMISSION_STATUSES, type ActivityEvent, type ImpactMetric, type ImpactMetricId, type Provider, type SubmissionStatus } from "@/types/domain";
+import type { ProviderPeriodStatus } from "@/types/submissions";
 
 export type DashboardImpactCard = {
   id: ImpactMetricId;
@@ -44,6 +55,54 @@ function footnoteFor(card: ImpactMetric): string {
   return "15 of 24 verified submissions with no chase email";
 }
 
+function medianChangeBadge(previousDays: number | null, currentDays: number): string {
+  if (previousDays === null) return "—";
+  const previous = Math.abs(Math.round(previousDays));
+  const current = Math.abs(Math.round(currentDays));
+  const delta = current - previous;
+  if (delta === 0) return "No change";
+  const label = Math.abs(delta) === 1 ? "1 day" : `${Math.abs(delta)} days`;
+  return delta < 0 ? `${label} saved` : `${label} extra`;
+}
+
+function medianTimelineDays(
+  providers: Array<Pick<Provider, "id" | "dueOn" | "submissionStatus" | "completedOn">>,
+  stored: Record<string, ProviderPeriodStatus>,
+  asOf: string,
+): number | null {
+  return medianNumber(
+    providers.map((provider) => {
+      const overlay = stored[String(provider.id)];
+      const status = overlay?.status ?? provider.submissionStatus;
+      const completedOn = status === "Complete" ? overlay?.completedOn ?? provider.completedOn : null;
+      return timelineStatusDays(completedOn, provider.dueOn, asOf);
+    }),
+  );
+}
+
+function categorySubmittedLabel(category: DashboardRow["category"], count: number): string {
+  if (category === "Training provider") {
+    return count === 1 ? "Training Provider" : "Training Providers";
+  }
+  return count === 1 ? category : `${category}s`;
+}
+
+function countLabel(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function completeCategoryNote(rows: DashboardRow[]): string {
+  const complete = rows.filter((row) => row.submissionStatus === "Complete");
+  if (!complete.length) return "No submissions complete";
+  const counts = new Map<DashboardRow["category"], number>();
+  for (const row of complete) {
+    counts.set(row.category, (counts.get(row.category) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([category, count]) => `${count} ${categorySubmittedLabel(category, count)} submitted`)
+    .join(" · ");
+}
+
 export type DashboardRow = {
   id: number;
   name: string;
@@ -52,6 +111,7 @@ export type DashboardRow = {
   submissionStatus: SubmissionStatus;
   completedDate: string;
   timelineStatus: string;
+  timelineDays: number;
   lastNotified: string;
 };
 
@@ -69,7 +129,13 @@ export type DashboardSummary = {
   pageSubtitle: string;
   panelTitle: string;
   panelSubtitle: string;
-  stats: Array<{ label: string; value: string; note: string; tone?: "warn" | "bad" | "" }>;
+  stats: Array<{
+    label: string;
+    value: string;
+    note: string | string[];
+    tone?: "warn" | "bad" | "";
+    onClick?: () => void;
+  }>;
   impact: DashboardImpactCard[];
   rows: DashboardRow[];
   statusFilters: StatusFilterOption[];
@@ -78,6 +144,7 @@ export type DashboardSummary = {
   priority: ActivityEvent[];
   openProvider: (id: number) => void;
   openReview: () => void;
+  openNudges: () => void;
   openIntake: () => void;
 };
 
@@ -86,6 +153,10 @@ export function useDashboard(): DashboardSummary {
   const periodId = useAppSelector((state) => state.workspace.selectedPeriodId);
   const storedStatuses = useAppSelector((state) => state.submissions.providerStatus[periodId] ?? {});
   const period = getPeriodById(periodId);
+  const previousPeriod = getPreviousPeriod(period);
+  const previousStored = useAppSelector((state) =>
+    previousPeriod ? state.submissions.providerStatus[previousPeriod.id] ?? {} : {},
+  );
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const query = useQuery({
     queryKey: queryKeys.dashboard(periodId),
@@ -94,7 +165,6 @@ export function useDashboard(): DashboardSummary {
   });
 
   const data = query.data;
-  const organizationCount = data?.stats.organizationCount ?? NETWORK_COUNTS.total;
   const dueOn = getPeriodDueIso(period);
   const asOf = asOfDateForPeriod(dueOn);
   const leftCaption = `${getPreviousBaselineName(period)} baseline`;
@@ -107,14 +177,16 @@ export function useDashboard(): DashboardSummary {
         const submissionStatus = stored?.status ?? provider.submissionStatus;
         const completedOn = stored?.completedOn ?? provider.completedOn;
         const statusChangedOn = stored?.statusChangedOn ?? provider.statusChangedOn;
+        const timelineCompletedOn = submissionStatus === "Complete" ? completedOn : null;
         return {
           id: provider.id,
           name: provider.name,
           backbone: provider.backbone,
           category: "Training provider" as const,
           submissionStatus,
-          completedDate: formatCompletedDate(submissionStatus === "Complete" ? completedOn : null),
-          timelineStatus: formatTimelineStatus(submissionStatus === "Complete" ? completedOn : null, provider.dueOn, asOf),
+          completedDate: formatCompletedDate(timelineCompletedOn),
+          timelineStatus: formatTimelineStatus(timelineCompletedOn, provider.dueOn, asOf),
+          timelineDays: timelineStatusDays(timelineCompletedOn, provider.dueOn, asOf),
           lastNotified: formatLastNotified(statusChangedOn, submissionStatus),
         };
       }),
@@ -137,6 +209,40 @@ export function useDashboard(): DashboardSummary {
 
   const visibleRows = statusFilter === "all" ? rows : rows.filter((row) => row.submissionStatus === statusFilter);
 
+  const derived = useMemo(() => {
+    const subawardees = rows.filter((row) => row.category === "Training provider");
+    const completeCount = subawardees.filter((row) => row.submissionStatus === "Complete").length;
+    const awaitingReview = subawardees.filter((row) => row.submissionStatus === "Awaiting review");
+    const inReview = subawardees.filter((row) => row.submissionStatus === "In review");
+    const needAttention = [...awaitingReview, ...inReview];
+    const missingFlagged = subawardees.filter((row) => row.submissionStatus === "Missing/flagged").length;
+    const notStarted = subawardees.filter((row) => row.submissionStatus === "Not started").length;
+    return {
+      completeCount,
+      totalCount: rows.length,
+      needAttentionCount: needAttention.length,
+      needAttentionNotes: [
+        needAttention[0]?.timelineStatus ?? "No submissions need attention",
+        countLabel(awaitingReview.length, "Awaiting Review", "Awaiting Reviews"),
+        countLabel(inReview.length, "In review", "In review"),
+      ],
+      followUpCount: missingFlagged + notStarted,
+      followUpNotes: [
+        countLabel(missingFlagged, "Missing/flagged submission", "Missing/flagged submissions"),
+        countLabel(notStarted, "Not started submission", "Not started submissions"),
+      ],
+      completeNote: completeCategoryNote(subawardees),
+      medianDays: medianNumber(rows.map((row) => row.timelineDays)),
+      previousMedianDays: previousPeriod
+        ? medianTimelineDays(
+            providersForPeriod(previousPeriod.id),
+            previousStored,
+            asOfDateForPeriod(getPeriodDueIso(previousPeriod)),
+          )
+        : null,
+    };
+  }, [previousPeriod, previousStored, rows]);
+
   return {
     isLoading: query.isLoading && !data,
     error: query.error instanceof Error ? query.error : query.error ? new Error("Failed to load dashboard") : null,
@@ -155,36 +261,59 @@ export function useDashboard(): DashboardSummary {
       },
       {
         label: period.kind === "quarterly" ? "Complete for the quarter" : "Complete submissions",
-        value: data ? `${data.stats.completeSubmissions}/${organizationCount}` : "—",
-        note: data?.completeNote ?? "—",
+        value: data ? `${derived.completeCount}/${derived.totalCount}` : "—",
+        note: data ? derived.completeNote : "—",
+      },
+      {
+        label: "Needs attention",
+        value: data ? String(derived.needAttentionCount) : "—",
+        note: data ? derived.needAttentionNotes : "—",
+        tone: "warn",
+        onClick: () => navigate("/review"),
       },
       {
         label: "Needs follow-up",
-        value: String(data?.stats.needsFollowUp ?? "—"),
-        note: data?.followUpNote ?? "—",
-        tone: "warn",
-      },
-      {
-        label: "Open review flags",
-        value: String(data?.stats.openFlags ?? "—"),
-        note: "Human review required",
+        value: data ? String(derived.followUpCount) : "—",
+        note: data ? derived.followUpNotes : "—",
         tone: "bad",
+        onClick: () => navigate("/nudges"),
       },
     ],
-    impact: (data?.impact ?? []).map((card) => ({
-      ...card,
-      leftCaption,
-      rightCaption,
-      footnote: footnoteFor(card),
-      trend: trendFor(card),
-    })),
+    impact: (data?.impact ?? []).map((card) => {
+      if (card.id !== "median-time" || derived.medianDays === null) {
+        return {
+          ...card,
+          leftCaption,
+          rightCaption,
+          footnote: footnoteFor(card),
+          trend: trendFor(card),
+        };
+      }
+
+      const after = formatDayCount(derived.medianDays);
+      const before = derived.previousMedianDays === null ? "—" : formatDayCount(derived.previousMedianDays);
+      return {
+        ...card,
+        before,
+        after,
+        badge: medianChangeBadge(derived.previousMedianDays, derived.medianDays),
+        leftCaption,
+        rightCaption,
+        footnote: footnoteFor(card),
+        trend: trendFor({ ...card, before, after }),
+      };
+    }),
     rows: visibleRows,
     statusFilters,
     statusFilter,
     setStatusFilter,
     priority: data?.priority ?? [],
-    openProvider: (id) => navigate(`/providers/${id}`),
+    openProvider: (id) => {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      navigate(`/providers/${id}?tab=monthly`);
+    },
     openReview: () => navigate("/review"),
-    openIntake: () => navigate("/intake"),
+    openNudges: () => navigate("/nudges"),
+    openIntake: () => navigate("/providers/1?tab=monthly"),
   };
 }

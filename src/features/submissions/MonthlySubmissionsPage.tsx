@@ -30,9 +30,16 @@ export function MonthlySubmissionsPage() {
                 aria-expanded={open}
                 onClick={() => summary.toggle(row.periodId)}
               >
-                <div>
-                  <strong>{row.title}</strong>
-                  <span className="submission-due">{row.dueLabel}</span>
+                <div className="submission-card-copy">
+                  {row.reviewStatus === "Missing/flagged" ? (
+                    <span className="submission-attention" aria-label="Attention needed">
+                      !
+                    </span>
+                  ) : null}
+                  <div>
+                    <strong>{row.title}</strong>
+                    <span className="submission-due">{row.dueLabel}</span>
+                  </div>
                 </div>
                 <span className="submission-status-stack">
                   <PackageStatusBadge status={row.status} />
@@ -48,6 +55,11 @@ export function MonthlySubmissionsPage() {
                     {row.documents.map((document) => (
                       <li key={document.kind}>
                         <div>
+                          {document.flagged ? (
+                            <span className="submission-attention" aria-label="Attention needed">
+                              !
+                            </span>
+                          ) : null}
                           <b>{document.label}</b>
                           <DocumentStatusBadge state={document.state} />
                         </div>

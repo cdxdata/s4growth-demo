@@ -16,7 +16,14 @@ export function DashboardPage() {
       <QueryState isLoading={summary.isLoading} error={summary.error}>
         <div className="grid stats">
           {summary.stats.map((stat) => (
-            <Stat key={stat.label} label={stat.label} value={stat.value} note={stat.note} tone={stat.tone} />
+            <Stat
+              key={stat.label}
+              label={stat.label}
+              value={stat.value}
+              note={stat.note}
+              tone={stat.tone}
+              onClick={stat.onClick}
+            />
           ))}
         </div>
         <div className="impact">
@@ -45,6 +52,7 @@ export function DashboardPage() {
               })}
             </div>
           </Panel.Head>
+          <div className="table-scroll">
           <table className="dashboard-table">
             <thead>
               <tr>
@@ -61,6 +69,7 @@ export function DashboardPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </Panel>
         <div className="grid two">
           <Panel>
@@ -80,13 +89,13 @@ export function DashboardPage() {
             <Panel.Head>
               <h2>Why this matters</h2>
             </Panel.Head>
-            <div style={{ padding: 20 }}>
-              <div style={{ fontSize: 26, fontWeight: 750, color: "var(--navy)" }}>Days → hours</div>
-              <p style={{ lineHeight: 1.65, fontSize: 13, marginTop: 8 }}>
+            <div className="why-copy">
+              <div className="why-kicker">Days → hours</div>
+              <p>
                 Structured monthly submissions and visible gaps help the team spend less time finding files and chasing missing
                 information.
               </p>
-              <button className="btn primary" onClick={summary.openIntake} style={{ marginTop: 8 }}>
+              <button className="btn primary" onClick={summary.openIntake}>
                 Open Monthly Submissions
               </button>
             </div>

@@ -5,11 +5,12 @@ import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { DEFAULT_PERIOD_ID, getElapsedQuarterMonths, getPeriodById, getPeriodDueDate } from "@/constants/periods";
 import { notifyStatusChange } from "@/lib/notifyStatus";
 import { resolveProviderId } from "@/lib/providerScope";
+import { normalizeEdaReview } from "@/lib/reviewModel";
 import { canSubmitMonthlyPackage, documentList } from "@/lib/submissionDocuments";
 import { getPeriodSubmission, getProviderPeriodStatus, submitMonthlyPackage } from "@/store/submissionsSlice";
 import { showToast } from "@/store/uiSlice";
 import type { SubmissionStatus } from "@/types/domain";
-import type { DocumentFillState, MonthlyPackageStatus, SubmissionDocumentKind } from "@/types/submissions";
+import type { DocumentFillState, MonthlyPackageStatus, PeriodSubmissionRecord, SubmissionDocumentKind } from "@/types/submissions";
 
 const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
 
@@ -19,9 +20,15 @@ export type SubmissionRow = {
   dueLabel: string;
   status: MonthlyPackageStatus;
   reviewStatus: SubmissionStatus | null;
-  documents: Array<{ kind: SubmissionDocumentKind; label: string; state: DocumentFillState }>;
+  documents: Array<{ kind: SubmissionDocumentKind; label: string; state: DocumentFillState; flagged: boolean }>;
   canSubmit: boolean;
 };
+
+function documentIsFlagged(record: PeriodSubmissionRecord, kind: SubmissionDocumentKind): boolean {
+  if (kind === "eda-survey") return normalizeEdaReview(record.review["eda-survey"]).score === "Flagged";
+  if (kind === "technical-report") return record.review["technical-report"].score === "Flagged";
+  return record.review.invoice.score === "Flagged";
+}
 
 export type MonthlySubmissionsSummary = {
   organizationName: string;
@@ -95,7 +102,10 @@ export function useMonthlySubmissions(): MonthlySubmissionsSummary {
           dueLabel: dueLabel(item.year, item.month),
           status: display.status,
           reviewStatus: display.reviewStatus,
-          documents: documentList(record),
+          documents: documentList(record).map((document) => ({
+            ...document,
+            flagged: documentIsFlagged(record, document.kind),
+          })),
           canSubmit: canSubmitMonthlyPackage(record) && record.status === "Action Needed",
         };
       }),
@@ -131,6 +141,7 @@ export function useMonthlySubmissions(): MonthlySubmissionsSummary {
           status: "Awaiting review",
           record,
           previous,
+          source: "training-provider",
         });
       }
       const row = rows.find((item) => item.periodId === periodId);

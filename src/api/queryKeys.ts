@@ -1,6 +1,8 @@
 export const queryKeys = {
   dashboard: (periodId: string) => ["dashboard", periodId] as const,
   provider: (id: number) => ["provider", id] as const,
+  providerRepresentatives: (id: number) => ["provider-representatives", id] as const,
+  providerContact: (id: number) => ["provider-contact", id] as const,
   participants: ["participants"] as const,
   review: ["review"] as const,
   nudges: ["nudges"] as const,

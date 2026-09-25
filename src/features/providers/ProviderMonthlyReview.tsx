@@ -28,6 +28,7 @@ export function ProviderMonthlyReview() {
             <EdaReviewSections
               sections={form.sections}
               sectionReviews={form.sectionReviews}
+              changedFieldIds={summary.changedFieldIds}
               interactive
               onScore={summary.setEdaScore}
               onMark={(fieldId, mark) => summary.setMark(form.id, fieldId, mark)}
@@ -38,6 +39,7 @@ export function ProviderMonthlyReview() {
                 fields={form.fields}
                 fieldMarks={form.fieldMarks}
                 showMarks={form.score === "Flagged"}
+                changedFieldIds={summary.changedFieldIds}
                 interactive
                 onMark={(fieldId, mark) => summary.setMark(form.id, fieldId, mark)}
               />
@@ -49,19 +51,30 @@ export function ProviderMonthlyReview() {
       {summary.lastMail ? (
         <Panel className="manager-review-mail">
           <div className="eyebrow">Last notification</div>
-          <strong>{summary.lastMail.subject}</strong>
-          <pre>{summary.lastMail.body}</pre>
-          <span className="helper">Sent to {summary.lastMail.recipients.join(", ")}</span>
+          <div className="message">
+            <div className="subject">{summary.lastMail.subject}</div>
+            <p>{summary.lastMail.body}</p>
+            <span className="helper">Sent to {summary.lastMail.recipients.join(", ")}</span>
+          </div>
         </Panel>
       ) : null}
 
-      <div className="form-foot eda-review-foot">
-        <button type="button" className="btn secondary" onClick={summary.saveLater}>
-          Save and finish later
+      <div className="form-foot eda-review-foot manager-review-foot">
+        <button type="button" className="btn secondary" onClick={summary.goBack}>
+          Go back
         </button>
-        <button type="button" className="btn primary" disabled={!summary.canFinish} onClick={summary.finish}>
-          Done
-        </button>
+        <div className="manager-review-action">
+          {summary.allMarked ? (
+            <button type="button" className="btn primary" disabled={!summary.canFinish} onClick={summary.finish}>
+              Save and notify
+            </button>
+          ) : (
+            <button type="button" className="btn primary" onClick={summary.saveLater}>
+              Save and finish later
+            </button>
+          )}
+          <p>An email will be sent to the training provider and reporting contacts.</p>
+        </div>
       </div>
     </div>
   );

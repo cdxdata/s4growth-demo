@@ -24,6 +24,7 @@ npm test
 ```
 
 ## To deploy to Github Pages
+
 ```bash
 npm run build
 cp dist/index.html dist/404.html
@@ -32,20 +33,13 @@ npx gh-pages -d dist
 
 ## Demo story
 
-1. Start at the reporting dashboard and open Piedmont Community College.
-2. Open **Monthly Submissions**, complete the missing September action plan, and submit the package.
-3. Show the tracker change to complete; the manager and provider views read the same persisted record.
-4. Open **Nudges**, send a simulated reminder, and show its persistent outbox entry.
-5. Open **Quarterly draft** to show metrics and narratives assembled from the July–September monthly records.
-6. Generate and download the EDA workbook. Its coded **Summary Sheet** and **PPR Draft** are generated from the same records, while the confirmation makes clear that nothing was transmitted.
-
-Use `manager@tester.com` for the program-manager view or `tp@tester.com` for the training-provider view. All participant details are synthetic.
+Use `manager@tester.com` for the project-manager view, `tp@tester.com` for Piedmont, or `admin@tester.com` for the directory. All participant details are synthetic.
 
 Email delivery and EDA transmission are intentionally simulated behind adapter interfaces in `src/adapters/`. Replacing either demo adapter with a live implementation does not require rebuilding the intake, tracker, or report assembler. Demo state persists in `localStorage`, so the vertical slice survives a refresh.
 
 ## Project layout
 
-```
+```text
 src/
   api/                 TanStack Query-facing mock API
   adapters/            Swappable simulated notification and EDA export boundaries

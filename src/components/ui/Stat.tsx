@@ -1,20 +1,37 @@
 type StatProps = {
   label: string;
   value: string | number;
-  note: string;
+  note: string | string[];
   tone?: "warn" | "bad" | "";
+  onClick?: () => void;
 };
 
-export function Stat({ label, value, note, tone = "" }: StatProps) {
+export function Stat({ label, value, note, tone = "", onClick }: StatProps) {
+  const notes = Array.isArray(note) ? note : [note];
   const prefix = tone === "warn" || tone === "bad" ? "● " : "↑ ";
-  return (
-    <div className="stat">
+  const className = `stat${onClick ? " is-link" : ""}`;
+  const body = (
+    <>
       <div className="label">{label}</div>
       <div className="value">{value}</div>
       <div className={`delta ${tone}`}>
-        {prefix}
-        {note}
+        {notes.map((line, index) => (
+          <span key={`${line}-${index}`}>
+            {prefix}
+            {line}
+          </span>
+        ))}
       </div>
-    </div>
+    </>
   );
+
+  if (onClick) {
+    return (
+      <button type="button" className={className} onClick={onClick}>
+        {body}
+      </button>
+    );
+  }
+
+  return <div className={className}>{body}</div>;
 }
