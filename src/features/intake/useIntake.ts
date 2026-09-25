@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { reportingApi } from "@/api/client";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { DEFAULT_PERIOD_ID, getPeriodById } from "@/constants/periods";
 import { resolveProviderId } from "@/lib/providerScope";
-import { getPeriodSubmission, updateTechnical } from "@/store/submissionsSlice";
-import { markSubmitted, updateDraft } from "@/store/intakeSlice";
+import { getPeriodSubmission, markPackageStatus, setProviderPeriodStatus, updateTechnical } from "@/store/submissionsSlice";
+import { updateDraft } from "@/store/intakeSlice";
 import { showToast } from "@/store/uiSlice";
 import { edaFillState, isTechnicalValid } from "@/lib/submissionDocuments";
 import {
@@ -36,7 +34,6 @@ export function useIntake() {
   const { periodId: periodParam } = useParams();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const queryClient = useQueryClient();
   const selectedPeriodId = useAppSelector((state) => state.workspace.selectedPeriodId);
   const periodId = resolvePeriodId(periodParam, selectedPeriodId);
   const period = getPeriodById(periodId);
@@ -59,16 +56,6 @@ export function useIntake() {
   const [error, setError] = useState("");
   const [showErrors, setShowErrors] = useState(false);
 
-  const mutation = useMutation({
-    mutationFn: reportingApi.submitIntake,
-    async onSuccess() {
-      dispatch(markSubmitted());
-      dispatch(showToast("Monthly Submissions report submitted for review."));
-      await queryClient.invalidateQueries();
-      navigate(isTrainingProvider ? "/submissions" : "/review");
-    },
-  });
-
   useEffect(() => {
     const patch = applyTechnicalDefaults(form, record.eda);
     if (Object.keys(patch).length === 0) return;
@@ -88,7 +75,7 @@ export function useIntake() {
     form,
     error,
     showErrors,
-    isSubmitting: mutation.isPending,
+    isSubmitting: false,
     isTrainingProvider,
     monthLabel: period.windowLabel,
     organizationName,
@@ -227,7 +214,10 @@ export function useIntake() {
         navigate("/submissions");
         return;
       }
-      mutation.mutate(form);
+      dispatch(markPackageStatus({ providerId, periodId, status: "Approved" }));
+      dispatch(setProviderPeriodStatus({ providerId, periodId, status: "Complete" }));
+      dispatch(showToast("Technical report saved; the provider tracker is now complete."));
+      navigate(`/providers/${providerId}`);
     },
     goBack() {
       navigate(isTrainingProvider ? "/submissions" : "/providers/1");

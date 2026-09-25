@@ -58,6 +58,36 @@ export function NudgesPage() {
           ) : null}
         </Panel>
       </div>
+      <Panel className="outbox">
+        <Panel.Head>
+          <Panel.Title title="Notification outbox" subtitle="Persistent history of reminders and review-status messages" />
+          <Status tone={summary.outbox.length ? "complete" : "draft"}>{summary.outbox.length} logged</Status>
+        </Panel.Head>
+        {summary.outbox.length ? (
+          <table>
+            <thead>
+              <tr>
+                <th>Recipients</th>
+                <th>Subject</th>
+                <th>Sent</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {summary.outbox.map((mail) => (
+                <tr key={mail.id}>
+                  <td>{mail.recipients.join(", ")}</td>
+                  <td>{mail.subject}</td>
+                  <td>{mail.sentOn}</td>
+                  <td><Status tone="complete">Simulated sent</Status></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="empty-inline" style={{ padding: 20 }}>Sent reminders will appear here.</div>
+        )}
+      </Panel>
     </QueryState>
   );
 }

@@ -101,10 +101,13 @@ function seedPiedmont(): Record<string, PeriodSubmissionRecord> {
     }),
     "2026-09": withReview({
       status: "Action Needed",
-      technical: defaultIntakeDraft(),
-      eda: emptyEdaDraft(),
-      invoice: emptyInvoiceDraft(),
-      edaMaxStep: 0,
+      technical: {
+        ...filledTechnicalDraft(),
+        plans: [{ plan: "", potentialGain: "" }],
+      },
+      eda: filledEdaDraft(provider),
+      invoice: { invoiceNumber: "PCC-2026-09", amount: "19250", notes: "September training and participant support costs." },
+      edaMaxStep: LAST_EDA_STEP,
     }),
   };
 }

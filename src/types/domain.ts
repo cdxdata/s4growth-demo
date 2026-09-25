@@ -172,6 +172,11 @@ export type QuarterlyDraft = {
   plan: string;
   quote: string;
   fromIntake: boolean;
+  sources?: Array<{
+    periodId: string;
+    label: string;
+    status: "Action Needed" | "Submitted" | "Approved";
+  }>;
 };
 
 export type ProviderDetail = {

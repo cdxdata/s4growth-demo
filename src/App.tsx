@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { useAppSelector } from "@/app/hooks";
+import { DEFAULT_PERIOD_ID } from "@/constants/periods";
 import { RepresentativesPage } from "@/features/account/RepresentativesPage";
 import { RoleDirectoryPage } from "@/features/admin/RoleDirectoryPage";
 import { LoginPage } from "@/features/auth/LoginPage";
@@ -25,9 +26,7 @@ function LoginGate() {
 }
 
 function ManagerIntakePage() {
-  const role = useAppSelector((state) => state.auth.identity?.role);
-  if (role === "training-provider") return <Navigate to="/submissions" replace />;
-  return <IntakePage />;
+  return <Navigate to={`/submissions/${DEFAULT_PERIOD_ID}/technical-report`} replace />;
 }
 
 export function App() {

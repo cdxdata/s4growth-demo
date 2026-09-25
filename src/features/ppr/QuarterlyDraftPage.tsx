@@ -15,8 +15,12 @@ export function QuarterlyDraftPage() {
           <div className="report-kicker">Steps4Growth · Program Progress Report</div>
           <h1>Quarterly progress draft</h1>
           <div className="report-lead">
-            This synthetic-data draft combines selected participant rollups with structured monthly updates. It is a
-            review aid, not an EDA-ready final submission.
+            This synthetic-data draft is assembled from the provider’s structured monthly submissions. It remains a
+            review aid until NC A&amp;T supplies the final PPR template.
+          </div>
+          <div className="notice">
+            <b>Data provenance:</b>{" "}
+            {draft.sources?.map((source) => `${source.label} (${source.status})`).join(" · ") || "No monthly sources"}
           </div>
           <div className="report-metrics">
             <div className="report-metric">
@@ -58,10 +62,21 @@ export function QuarterlyDraftPage() {
             <span style={{ fontSize: 11, color: "var(--muted)" }}>
               Draft status · synthetic data · {draft.fromIntake ? "updated from monthly submissions" : "updated today"}
             </span>
-            <button className="btn secondary" onClick={summary.print}>
-              Print preview
-            </button>
+            <div>
+              <button className="btn secondary" onClick={summary.print}>
+                Print preview
+              </button>{" "}
+              <button className="btn primary" onClick={summary.generate} disabled={summary.isGenerating}>
+                {summary.isGenerating ? "Generating…" : "Generate EDA workbook"}
+              </button>
+            </div>
           </div>
+          {summary.confirmation ? (
+            <div className="success">
+              ✓ {summary.confirmation.fileName} generated on {summary.confirmation.generatedAt}. The workbook was
+              downloaded locally; no data was transmitted to EDA.
+            </div>
+          ) : null}
         </Panel>
       ) : null}
     </QueryState>
