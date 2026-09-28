@@ -27,6 +27,16 @@ export const reportingApi = {
     return detail;
   },
 
+  async getProviderRepresentatives(providerId: number) {
+    await wait(NETWORK_DELAY_MS);
+    return directoryDb.getRepresentativesForProvider(providerId);
+  },
+
+  async getProviderContact(providerId: number) {
+    await wait(NETWORK_DELAY_MS);
+    return directoryDb.getProviderContact(providerId);
+  },
+
   async getParticipants() {
     await wait(NETWORK_DELAY_MS);
     return mockDb.getParticipants();

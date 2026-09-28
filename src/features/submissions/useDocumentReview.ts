@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useAppSelector } from "@/app/hooks";
-import { getPeriodById } from "@/constants/periods";
+import { MONTH_NAMES, getPeriodById } from "@/constants/periods";
 import { resolveProviderId } from "@/lib/providerScope";
 import { fieldsForForm, formLabel } from "@/lib/reviewModel";
 import { getPeriodSubmission } from "@/store/submissionsSlice";
@@ -13,13 +13,17 @@ export function useDocumentReview(kind: Exclude<ReviewFormId, "eda-survey">) {
   const providerId = resolveProviderId(identity);
   const record = useAppSelector((state) => getPeriodSubmission(state.submissions, periodId, providerId));
   const review = record.review[kind];
+  const period = getPeriodById(periodId);
 
   return {
     periodId,
-    monthLabel: getPeriodById(periodId).windowLabel,
+    monthLabel: period.windowLabel,
     organizationName: identity?.organizationName ?? "Training provider",
     label: formLabel(kind),
-    fields: fieldsForForm(kind, record),
+    fields: fieldsForForm(kind, record, {
+      month: MONTH_NAMES[(period.month ?? 9) - 1],
+      providerName: record.eda.trainingProvider || identity?.organizationName || "Training provider",
+    }),
     showMarks: review.score === "Flagged",
     fieldMarks: review.fieldMarks,
     goBack() {

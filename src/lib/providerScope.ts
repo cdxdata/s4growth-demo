@@ -1,5 +1,16 @@
 import { TRAINING_PROVIDERS } from "@/constants/organizations";
 import type { AuthIdentity } from "@/types/auth";
+import type { ProviderType } from "@/types/domain";
+
+const TYPE_SHORT: Record<ProviderType, string> = {
+  "Training provider": "TP",
+  Backbone: "BB",
+  "Employment liaison": "EL",
+};
+
+export function providerCategoryShort(type: ProviderType): string {
+  return TYPE_SHORT[type];
+}
 
 export function providerIdFromName(name: string | undefined): number | null {
   if (!name) return null;

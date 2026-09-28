@@ -7,6 +7,8 @@ export type NotificationInput = {
   subject: string;
   body: string;
   status: ReviewMail["status"];
+  kind?: ReviewMail["kind"];
+  source?: ReviewMail["source"];
 };
 
 export interface NotificationAdapter {

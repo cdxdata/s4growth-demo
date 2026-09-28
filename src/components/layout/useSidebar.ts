@@ -15,6 +15,7 @@ export type SidebarSummary = {
   teamName: string;
   teamSubtitle: string;
   canSignOut: boolean;
+  canResetData: boolean;
   isItemActive: (pathname: string, id: string) => boolean;
 };
 
@@ -41,6 +42,7 @@ export function useSidebar(): SidebarSummary {
         : ROLE_LABELS[identity.role]
       : fallbackSubtitle,
     canSignOut: Boolean(identity),
+    canResetData: identity?.role === "admin",
     isItemActive(pathname, id) {
       if (id === "dashboard") return pathname === "/";
       if (id === "provider") return pathname.startsWith("/providers");

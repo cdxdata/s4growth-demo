@@ -1,9 +1,21 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import { emptyEdaDraft, emptyInvoiceDraft, filledEdaDraft } from "@/constants/eda";
+import { emptyEdaDraft, emptyInvoiceDraft } from "@/constants/eda";
+import { createDemoSubmissionsState, SUBMISSIONS_STORAGE_KEY, SUBMISSIONS_STORAGE_VERSION } from "@/lib/demoSeed";
 import { defaultIntakeDraft } from "@/lib/storage";
 import { DEMO_TODAY } from "@/lib/reportingDates";
-import { deriveEdaScore, edaSectionFromFieldId, emptyPackageReview, mergeEdaFieldMarks, normalizeEdaReview, normalizePackageReview } from "@/lib/reviewModel";
-import { ACHIEVEMENT_KEYWORDS, applyTechnicalDefaults, filledTechnicalDraft } from "@/lib/technicalReport";
+import {
+  changedReviewFieldIds,
+  deriveEdaScore,
+  edaSectionFromFieldId,
+  emptyPackageReview,
+  fieldsForForm,
+  mergeEdaFieldMarks,
+  normalizeEdaReview,
+  normalizePackageReview,
+  passIfAllFieldsGood,
+  reviewValueSnapshot,
+  unmarkChangedFields,
+} from "@/lib/reviewModel";
 import type { IntakeDraft, SubmissionStatus } from "@/types/domain";
 import type {
   EdaSurveyDraft,
@@ -18,15 +30,8 @@ import type {
   ReviewMail,
 } from "@/types/submissions";
 
-const STORAGE_KEY = "s4g-monthly-submissions";
-const STORAGE_VERSION = 9;
-const LAST_EDA_STEP = 9;
-
-function technicalForFilledMonth(eda: EdaSurveyDraft, extras: Partial<IntakeDraft>): IntakeDraft {
-  const base = filledTechnicalDraft();
-  const suggested = applyTechnicalDefaults(base, eda);
-  return { ...base, ...suggested, ...extras };
-}
+const STORAGE_KEY = SUBMISSIONS_STORAGE_KEY;
+const STORAGE_VERSION = SUBMISSIONS_STORAGE_VERSION;
 
 export type SubmissionsState = {
   version: number;
@@ -44,81 +49,34 @@ function emptyRecord(): PeriodSubmissionRecord {
     edaMaxStep: 0,
     review: emptyPackageReview(),
     reviewPublished: null,
+    reviewFieldSnapshot: undefined,
   };
 }
 
-function withReview(record: Omit<PeriodSubmissionRecord, "review"> & { review?: PackageReview; reviewPublished?: string | null }): PeriodSubmissionRecord {
-  return { ...record, review: normalizePackageReview(record.review), reviewPublished: record.reviewPublished ?? null };
-}
-
-function seedPiedmont(): Record<string, PeriodSubmissionRecord> {
-  const provider = "Piedmont Community College";
+function withReview(
+  record: Omit<PeriodSubmissionRecord, "review"> & {
+    review?: PackageReview;
+    reviewPublished?: string | null;
+    reviewFieldSnapshot?: Record<string, string>;
+  },
+): PeriodSubmissionRecord {
   return {
-    "2026-07": withReview({
-      status: "Approved",
-      technical: (() => {
-        const draft = filledEdaDraft(provider);
-        return technicalForFilledMonth(draft, {});
-      })(),
-      eda: (() => {
-        const draft = filledEdaDraft(provider);
-        return {
-          ...draft,
-          admissions: draft.admissions.map((item, index) =>
-            index === 0 ? { ...item, recruited: "20", admitted: "17", enrolled: "16" } : item,
-          ),
-        };
-      })(),
-      invoice: { invoiceNumber: "PCC-2026-07", amount: "18420", notes: "July instructional and wraparound costs." },
-      edaMaxStep: LAST_EDA_STEP,
-    }),
-    "2026-08": withReview({
-      status: "Submitted",
-      technical: (() => {
-        const seeded = technicalForFilledMonth(filledEdaDraft(provider), {
-          challenges: [{ keyword: "Data Collection", detail: "Credential paperwork lagged for late completers." }],
-          plans: [
-            {
-              plan: "Assign a staff reviewer to close credential files within five days.",
-              potentialGain: "Close credential files within five days of completion.",
-            },
-          ],
-          testimonial: defaultIntakeDraft().testimonial,
-          mediaLink: defaultIntakeDraft().mediaLink,
-        });
-        return {
-          ...seeded,
-          achievementKeywords: [...ACHIEVEMENT_KEYWORDS.slice(0, -1), "New pathway", "None"],
-          achievements: [
-            ...seeded.achievements,
-            { keyword: "New pathway", detail: "August added a second manufacturing pathway and a paid internship block." },
-          ],
-        };
-      })(),
-      eda: filledEdaDraft(provider),
-      invoice: { invoiceNumber: "PCC-2026-08", amount: "", notes: "" },
-      edaMaxStep: LAST_EDA_STEP,
-    }),
-    "2026-09": withReview({
-      status: "Action Needed",
-      technical: {
-        ...filledTechnicalDraft(),
-        plans: [{ plan: "", potentialGain: "" }],
-      },
-      eda: filledEdaDraft(provider),
-      invoice: { invoiceNumber: "PCC-2026-09", amount: "19250", notes: "September training and participant support costs." },
-      edaMaxStep: LAST_EDA_STEP,
-    }),
+    ...record,
+    review: normalizePackageReview(record.review),
+    reviewPublished: record.reviewPublished ?? null,
+    reviewFieldSnapshot: record.reviewFieldSnapshot,
   };
+}
+
+function reconcileChangedMarks(record: PeriodSubmissionRecord) {
+  if (!record.reviewFieldSnapshot) return;
+  const next = unmarkChangedFields(record.review, changedReviewFieldIds(record));
+  if (next === record.review) return;
+  record.review = next;
 }
 
 function seedState(): SubmissionsState {
-  return {
-    version: STORAGE_VERSION,
-    byProvider: { "1": seedPiedmont() },
-    providerStatus: {},
-    mail: [],
-  };
+  return createDemoSubmissionsState();
 }
 
 function persist(state: SubmissionsState) {
@@ -165,12 +123,19 @@ function loadState(): SubmissionsState {
   if (typeof window === "undefined") return seeded;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return seeded;
+    if (!raw) {
+      persist(seeded);
+      return seeded;
+    }
     const migrated = migrate(JSON.parse(raw));
-    if (!migrated) return seeded;
+    if (!migrated) {
+      persist(seeded);
+      return seeded;
+    }
     return {
       ...migrated,
-      byProvider: { ...seeded.byProvider, ...migrated.byProvider, "1": { ...seeded.byProvider["1"], ...migrated.byProvider["1"] } },
+      byProvider: { ...seeded.byProvider, ...migrated.byProvider },
+      providerStatus: { ...seeded.providerStatus, ...migrated.providerStatus },
     };
   } catch {
     return seeded;
@@ -201,11 +166,13 @@ const submissionsSlice = createSlice({
     updateTechnical(state, action: PayloadAction<Scoped & { patch: Partial<IntakeDraft> }>) {
       const record = ensureRecord(state, scopeId(action.payload), action.payload.periodId);
       record.technical = { ...record.technical, ...action.payload.patch };
+      reconcileChangedMarks(record);
       persist(state);
     },
     updateEda(state, action: PayloadAction<Scoped & { patch: Partial<EdaSurveyDraft> }>) {
       const record = ensureRecord(state, scopeId(action.payload), action.payload.periodId);
       record.eda = { ...record.eda, ...action.payload.patch };
+      reconcileChangedMarks(record);
       persist(state);
     },
     saveEdaDraft(state, action: PayloadAction<Scoped>) {
@@ -215,6 +182,7 @@ const submissionsSlice = createSlice({
     updateInvoice(state, action: PayloadAction<Scoped & { patch: Partial<InvoiceDraft> }>) {
       const record = ensureRecord(state, scopeId(action.payload), action.payload.periodId);
       record.invoice = { ...record.invoice, ...action.payload.patch };
+      reconcileChangedMarks(record);
       persist(state);
     },
     setEdaMaxStep(state, action: PayloadAction<Scoped & { step: number }>) {
@@ -264,6 +232,13 @@ const submissionsSlice = createSlice({
         } else {
           delete eda.sections[sectionId].fieldMarks[action.payload.fieldId];
         }
+        const passed = passIfAllFieldsGood(
+          eda.sections[sectionId].score,
+          fieldsForForm("eda-survey", record).filter((field) => field.sectionId === sectionId),
+          eda.sections[sectionId].fieldMarks,
+        );
+        eda.sections[sectionId].score = passed.score;
+        eda.sections[sectionId].fieldMarks = passed.fieldMarks;
         record.review["eda-survey"] = {
           score: deriveEdaScore(eda.sections),
           fieldMarks: mergeEdaFieldMarks(eda.sections),
@@ -277,12 +252,35 @@ const submissionsSlice = createSlice({
       } else {
         delete record.review[action.payload.formId].fieldMarks[action.payload.fieldId];
       }
+      const passed = passIfAllFieldsGood(
+        record.review[action.payload.formId].score,
+        fieldsForForm(action.payload.formId, record),
+        record.review[action.payload.formId].fieldMarks,
+      );
+      record.review[action.payload.formId].score = passed.score;
+      record.review[action.payload.formId].fieldMarks = passed.fieldMarks;
+      persist(state);
+    },
+    restoreReview(state, action: PayloadAction<Scoped & { review: PackageReview }>) {
+      const record = ensureRecord(state, scopeId(action.payload), action.payload.periodId);
+      record.review = normalizePackageReview(action.payload.review);
       persist(state);
     },
     setReviewPublished(state, action: PayloadAction<Scoped & { signature: string | null }>) {
       const record = ensureRecord(state, scopeId(action.payload), action.payload.periodId);
       record.reviewPublished = action.payload.signature;
       persist(state);
+    },
+    captureReviewSnapshot(state, action: PayloadAction<Scoped>) {
+      const record = ensureRecord(state, scopeId(action.payload), action.payload.periodId);
+      record.reviewFieldSnapshot = reviewValueSnapshot(record);
+      persist(state);
+    },
+    reconcileReviewChanges(state, action: PayloadAction<Scoped>) {
+      const record = ensureRecord(state, scopeId(action.payload), action.payload.periodId);
+      const before = record.review;
+      reconcileChangedMarks(record);
+      if (record.review !== before) persist(state);
     },
     setProviderPeriodStatus(
       state,
@@ -305,6 +303,11 @@ const submissionsSlice = createSlice({
       state.mail = [action.payload, ...state.mail].slice(0, 40);
       persist(state);
     },
+    resetDemoData() {
+      const next = seedState();
+      persist(next);
+      return next;
+    },
   },
 });
 
@@ -319,9 +322,13 @@ export const {
   setFormScore,
   setEdaSectionScore,
   setFieldMark,
+  restoreReview,
   setReviewPublished,
+  captureReviewSnapshot,
+  reconcileReviewChanges,
   setProviderPeriodStatus,
   recordMail,
+  resetDemoData,
 } = submissionsSlice.actions;
 export const submissionsReducer = submissionsSlice.reducer;
 

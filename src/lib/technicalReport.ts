@@ -83,10 +83,60 @@ export function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
+function placeholderPdfDataUrl(label: string): string {
+  const text = label.replace(/[()\\]/g, " ").slice(0, 90);
+  const stream = `BT /F1 16 Tf 50 720 Td (${text}) Tj ET`;
+  const objects = [
+    "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n",
+    `4 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}\nendstream\nendobj\n`,
+    "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+  ];
+  let body = "%PDF-1.4\n";
+  const offsets = [0];
+  for (const object of objects) {
+    offsets.push(body.length);
+    body += object;
+  }
+  const xrefStart = body.length;
+  let xref = "xref\n0 6\n0000000000 65535 f \n";
+  for (let index = 1; index <= 5; index += 1) {
+    xref += `${String(offsets[index]).padStart(10, "0")} 00000 n \n`;
+  }
+  body += `${xref}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+  return `data:application/pdf;base64,${btoa(body)}`;
+}
+
 export function attachmentHref(file: TestimonialFile): string {
+  if (file.dataUrl && !file.dataUrl.startsWith("data:text/plain")) return file.dataUrl;
+  if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+    return placeholderPdfDataUrl(`Demo attachment: ${file.name}`);
+  }
   if (file.dataUrl) return file.dataUrl;
-  const payload = btoa(`Demo attachment: ${file.name}`);
-  return `data:${file.type || "text/plain"};base64,${payload}`;
+  return `data:${file.type || "text/plain"};base64,${btoa(`Demo attachment: ${file.name}`)}`;
+}
+
+function fileExtension(name: string): string {
+  const match = name.match(/(\.[A-Za-z0-9]{1,8})$/);
+  return match ? match[1] : "";
+}
+
+function safeFilePart(value: string, fallback: string): string {
+  const next = value.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim();
+  return next || fallback;
+}
+
+export function attachmentDownloadName(
+  month: string,
+  providerName: string,
+  originalName: string,
+  index = 0,
+  total = 1,
+): string {
+  const base = `S4G-${safeFilePart(month, "Month")}-${safeFilePart(providerName, "Training provider")}`;
+  const ext = fileExtension(originalName);
+  return total > 1 ? `${base}-${index + 1}${ext}` : `${base}${ext}`;
 }
 
 export function formatFileSize(size: number): string {
@@ -256,7 +306,7 @@ export function filledTechnicalDraft(): IntakeDraft {
         name: "EDA-success-story-july.pdf",
         size: 182400,
         type: "application/pdf",
-        dataUrl: `data:text/plain;base64,${btoa("Demo attachment: EDA-success-story-july.pdf")}`,
+        dataUrl: placeholderPdfDataUrl("Demo attachment: EDA-success-story-july.pdf"),
       }],
     },
     mediaLink: {

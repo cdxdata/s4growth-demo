@@ -4,7 +4,6 @@ import { DEMO_TODAY, formatCompletedDate } from "@/lib/reportingDates";
 import type {
   ActivityEvent,
   ChecklistItem,
-  Contact,
   DashboardPayload,
   IntakeDraft,
   NudgeLog,
@@ -248,25 +247,6 @@ function checklistFor(provider: Provider): ChecklistItem[] {
   ];
 }
 
-function contactsFor(provider: Provider): Contact[] {
-  if (provider.id === PIEDMONT_ID) {
-    return [
-      { initials: "JA", name: "Jordan Alvarez", role: "Principal investigator · Primary" },
-      { initials: "MS", name: "Miriam Stone", role: "Finance · CC" },
-      { initials: "TS", name: "Tasha Smith", role: "Instructor · CC" },
-    ];
-  }
-  if (provider.id === 3) {
-    return [
-      { initials: "CB", name: "Carlos Bennett", role: "Principal investigator · Primary" },
-      { initials: "FN", name: "Finance contact", role: "Finance · CC" },
-    ];
-  }
-  return [
-    { initials: provider.name.slice(0, 2).toUpperCase(), name: `${provider.name} lead`, role: "Primary contact" },
-  ];
-}
-
 function activityFor(provider: Provider): ActivityEvent[] {
   if (provider.id !== PIEDMONT_ID) {
     const idle = provider.submissionStatus === "Not started" || provider.submissionStatus === "Missing/flagged";
@@ -334,7 +314,6 @@ export const mockDb = {
     return clone({
       provider,
       checklist: checklistFor(provider),
-      contacts: contactsFor(provider),
       activity: activityFor(provider),
       openGaps: complete ? 0 : provider.id === PIEDMONT_ID ? 2 : 1,
     });
@@ -391,24 +370,26 @@ export const mockDb = {
           id: "ccs",
           label: "Central Carolina Skills",
           text: "Technical report not submitted · 3 days overdue",
-          ok: false,
+          status: "Not started",
         },
         {
           id: "pcc",
           label: "Piedmont Community College",
           text: "Completion total needs reviewer confirmation",
-          ok: completionFlagResolved(),
+          status: "Missing/flagged",
         },
         {
           id: "twa",
           label: "Triad Workforce Alliance",
           text: "No action required",
-          ok: true,
+          status: "Complete",
         },
       ],
       message: {
         to: "Carlos Bennett, PI",
         cc: "Finance contact, instructor",
+        toEmail: "carlos.bennett@centralcarolina.edu",
+        ccEmails: ["finance@centralcarolina.edu"],
         subject: "Action needed: September Steps4Growth report",
         body: "Hello Carlos,\n\nThe September technical report for Central Carolina Skills has not yet been received. Please submit the structured report and participant-data update so NC A&T can complete monthly review.\n\nCurrent due date: September 17, 2026\nStatus: 3 days overdue",
       },

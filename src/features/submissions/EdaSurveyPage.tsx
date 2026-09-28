@@ -74,7 +74,6 @@ export function EdaSurveyPage() {
             ))}
           </nav>
           <div className="eda-section-head">
-            <h2>{segment.title}</h2>
             <p>{segment.description}</p>
           </div>
         </div>

@@ -184,6 +184,8 @@ export type PackageReview = {
 export type ReviewAttachment = {
   name: string;
   href: string;
+  downloadName: string;
+  type?: string;
   sizeLabel?: string;
 };
 
@@ -212,6 +214,8 @@ export type ReviewMail = {
   body: string;
   sentOn: string;
   status: SubmissionStatus;
+  kind?: "reminder" | "status";
+  source?: "project-manager" | "training-provider";
 };
 
 export type PeriodSubmissionRecord = {
@@ -222,6 +226,7 @@ export type PeriodSubmissionRecord = {
   edaMaxStep: number;
   review: PackageReview;
   reviewPublished?: string | null;
+  reviewFieldSnapshot?: Record<string, string>;
 };
 
 export type SubmissionDocument = {

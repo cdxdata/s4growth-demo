@@ -9,8 +9,7 @@ export type NavItem = {
 
 export const MANAGER_NAV: NavItem[] = [
   { id: "dashboard", to: "/", icon: "▦", label: "Dashboard" },
-  { id: "provider", to: "/providers/1", icon: "◉", label: "Subawardees" },
-  { id: "intake", to: "/intake", icon: "▤", label: "Monthly Submissions" },
+  { id: "provider", to: "/providers/1", icon: "◉", label: "Subawardee" },
   { id: "participants", to: "/participants", icon: "◎", label: "Participant review" },
   { id: "review", to: "/review", icon: "⚑", label: "Review queue" },
   { id: "nudges", to: "/nudges", icon: "✉", label: "Nudges" },

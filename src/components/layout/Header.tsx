@@ -19,9 +19,7 @@ export function Header({
       <div>
         <div className="eyebrow">Steps4Growth · synthetic demo</div>
         <h1>{title}</h1>
-        {subtitle ? (
-          <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 4 }}>{subtitle}</div>
-        ) : null}
+        {subtitle ? <p className="topbar-subtitle">{subtitle}</p> : null}
       </div>
       {showPeriod ? <PeriodSelect /> : null}
     </header>

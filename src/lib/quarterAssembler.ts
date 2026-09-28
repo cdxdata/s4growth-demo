@@ -22,7 +22,7 @@ function sumRows<T>(rows: T[], select: (row: T) => number): number {
   return rows.reduce((total, row) => total + select(row), 0);
 }
 
-function monthIds(quarter: ReportingPeriod): string[] {
+export function quarterMonthIds(quarter: ReportingPeriod): string[] {
   const finalMonth = quarter.quarter === 2 ? 6 : 9;
   return [finalMonth - 2, finalMonth - 1, finalMonth].map(
     (month) => `${quarter.year}-${String(month).padStart(2, "0")}`,
@@ -33,7 +33,7 @@ export function assembleQuarter(
   quarter: ReportingPeriod,
   records: Record<string, PeriodSubmissionRecord>,
 ): AssembledQuarter {
-  const ids = monthIds(quarter);
+  const ids = quarterMonthIds(quarter);
   const selected = ids.map((periodId) => ({ periodId, record: records[periodId] })).filter(
     (item): item is { periodId: string; record: PeriodSubmissionRecord } => Boolean(item.record),
   );
