@@ -6,7 +6,7 @@ import { useAppSelector } from "@/app/hooks";
 import { MONTH_NAMES, getPeriodById } from "@/constants/periods";
 import { overviewDocuments, type OverviewDocument } from "@/lib/overviewDocuments";
 import { getPeriodSubmission, getProviderPeriodStatus } from "@/store/submissionsSlice";
-import type { Representative } from "@/types/auth";
+import type { User } from "@/types/auth";
 import type { ActivityEvent, Provider } from "@/types/domain";
 
 export type ProviderTab = "overview" | "monthly";
@@ -18,7 +18,7 @@ export type ProviderSummary = {
   provider: Provider | null;
   tab: ProviderTab;
   documents: OverviewDocument[];
-  representatives: Representative[];
+  users: User[];
   activity: ActivityEvent[];
   openGaps: number;
   completed: boolean;
@@ -44,9 +44,9 @@ export function useProvider(): ProviderSummary {
     queryFn: () => reportingApi.getProvider(providerId),
     enabled: Number.isFinite(providerId),
   });
-  const repsQuery = useQuery({
-    queryKey: queryKeys.providerRepresentatives(providerId),
-    queryFn: () => reportingApi.getProviderRepresentatives(providerId),
+  const usersQuery = useQuery({
+    queryKey: queryKeys.providerUsers(providerId),
+    queryFn: () => reportingApi.getProviderUsers(providerId),
     enabled: Number.isFinite(providerId),
   });
 
@@ -66,13 +66,13 @@ export function useProvider(): ProviderSummary {
   const completed = provider?.submissionStatus === "Complete";
 
   return {
-    isLoading: (query.isLoading || repsQuery.isLoading) && !detail,
+    isLoading: (query.isLoading || usersQuery.isLoading) && !detail,
     error: query.error instanceof Error ? query.error : query.error ? new Error("Failed to load subawardee") : null,
     providerId,
     provider,
     tab,
     documents: overviewDocuments(record, provider?.submissionStatus ?? "Not started"),
-    representatives: repsQuery.data ?? [],
+    users: usersQuery.data ?? [],
     activity: detail?.activity ?? [],
     openGaps: detail?.openGaps ?? 0,
     completed,

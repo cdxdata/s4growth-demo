@@ -25,7 +25,7 @@ export function LiaisonHomePage() {
               subtitle="This workspace tracks participants this liaison is supporting in jobs."
             />
           </Panel.Head>
-          <div className="rep-block">
+          <div className="user-block">
             <p className="empty-inline">
               {summary.participantsEmployed} participants are currently under employment through {summary.name}.
             </p>

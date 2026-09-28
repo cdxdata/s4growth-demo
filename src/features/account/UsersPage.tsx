@@ -1,38 +1,38 @@
 import { Header } from "@/components/layout/Header";
 import { Panel } from "@/components/ui/Panel";
 import { QueryState } from "@/components/ui/QueryState";
-import { useRepresentatives } from "@/features/account/useRepresentatives";
-import { MAX_REPRESENTATIVES } from "@/types/auth";
+import { useUsers } from "@/features/account/useUsers";
+import { MAX_USERS } from "@/types/auth";
 
-export function RepresentativesPage() {
-  const summary = useRepresentatives();
+export function UsersPage() {
+  const summary = useUsers();
 
   return (
     <>
       <Header
-        title="Representatives"
+        title="Users"
         subtitle={`People who can sign in and work in the ${summary.organizationName} workspace.`}
       />
       <QueryState isLoading={summary.isLoading} error={summary.error}>
         <Panel>
           <Panel.Head>
             <Panel.Title
-              title={`${summary.representatives.length}/${MAX_REPRESENTATIVES} representatives`}
+              title={`${summary.users.length}/${MAX_USERS} users`}
               subtitle="Up to four staff can share this organization's access."
             />
           </Panel.Head>
-          {summary.representatives.length === 0 ? (
+          {summary.users.length === 0 ? (
             <div className="empty-inline" style={{ padding: 16 }}>
-              No representatives yet.
+              No users yet.
             </div>
           ) : (
-            summary.representatives.map((rep) => (
-              <div className="rep-row" key={rep.id}>
+            summary.users.map((user) => (
+              <div className="user-row" key={user.id}>
                 <div>
-                  <strong>{rep.name}</strong>
-                  <span>{rep.email}</span>
+                  <strong>{user.name}</strong>
+                  <span>{user.email}</span>
                 </div>
-                <button className="link" type="button" onClick={() => summary.remove(rep.id)}>
+                <button className="link" type="button" onClick={() => summary.remove(user.id)}>
                   Remove
                 </button>
               </div>
@@ -41,10 +41,10 @@ export function RepresentativesPage() {
         </Panel>
         <Panel>
           <Panel.Head>
-            <Panel.Title title="Add a representative" subtitle="Name and email only." />
+            <Panel.Title title="Add a user" subtitle="Name and email only." />
           </Panel.Head>
           {summary.atCapacity ? (
-            <div className="rep-block">This organization already has four representatives.</div>
+            <div className="user-block">This organization already has four users.</div>
           ) : (
             <form className="directory-form" onSubmit={summary.add}>
               {summary.formError ? <div className="notice error">{summary.formError}</div> : null}
@@ -57,7 +57,7 @@ export function RepresentativesPage() {
                 required
               />
               <button className="btn primary" type="submit" disabled={summary.isSaving}>
-                Add representative
+                Add user
               </button>
             </form>
           )}

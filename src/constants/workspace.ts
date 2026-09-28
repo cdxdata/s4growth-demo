@@ -14,7 +14,7 @@ export const MANAGER_NAV: NavItem[] = [
   { id: "review", to: "/review", icon: "⚑", label: "Review queue" },
   { id: "nudges", to: "/nudges", icon: "✉", label: "Nudges" },
   { id: "ppr", to: "/quarterly-draft", icon: "▤", label: "Quarterly draft" },
-  { id: "representatives", to: "/representatives", icon: "👤", label: "Representatives" },
+  { id: "users", to: "/users", icon: "👤", label: "Users" },
 ];
 
 export const ADMIN_NAV: NavItem[] = [
@@ -28,17 +28,17 @@ export const ADMIN_NAV: NavItem[] = [
 export const TRAINING_PROVIDER_NAV: NavItem[] = [
   { id: "dashboard", to: "/", icon: "▦", label: "Dashboard" },
   { id: "intake", to: "/submissions", icon: "▤", label: "Monthly Submissions" },
-  { id: "representatives", to: "/representatives", icon: "👤", label: "Representatives" },
+  { id: "users", to: "/users", icon: "👤", label: "Users" },
 ];
 
 export const BACKBONE_NAV: NavItem[] = [
   { id: "dashboard", to: "/", icon: "▦", label: "Dashboard" },
-  { id: "representatives", to: "/representatives", icon: "👤", label: "Representatives" },
+  { id: "users", to: "/users", icon: "👤", label: "Users" },
 ];
 
 export const LIAISON_NAV: NavItem[] = [
   { id: "dashboard", to: "/", icon: "▦", label: "Dashboard" },
-  { id: "representatives", to: "/representatives", icon: "👤", label: "Representatives" },
+  { id: "users", to: "/users", icon: "👤", label: "Users" },
 ];
 
 export const NAV_BY_ROLE: Record<AppRole, NavItem[]> = {

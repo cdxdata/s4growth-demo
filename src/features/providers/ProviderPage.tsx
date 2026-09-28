@@ -76,13 +76,13 @@ export function ProviderPage() {
                       <Panel.Head>
                         <Panel.Title title="Nudge recipients" subtitle="Configured contacts for reporting follow-up" />
                       </Panel.Head>
-                      {summary.representatives.length ? (
-                        summary.representatives.map((rep) => (
-                          <ContactItem key={rep.id} name={rep.name} email={rep.email} />
+                      {summary.users.length ? (
+                        summary.users.map((user) => (
+                          <ContactItem key={user.id} name={user.name} email={user.email} />
                         ))
                       ) : (
                         <div className="empty-inline">
-                          No representatives registered for this organization.
+                          No users registered for this organization.
                         </div>
                       )}
                       <div className="panel-inset">

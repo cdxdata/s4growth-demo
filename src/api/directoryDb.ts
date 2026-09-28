@@ -1,14 +1,14 @@
-import { createDirectoryEntities, createDirectoryRepresentatives } from "@/constants/directorySeed";
+import { createDirectoryEntities, createDirectoryUsers } from "@/constants/directorySeed";
 import { TRAINING_PROVIDERS } from "@/constants/organizations";
 import type {
   AppRole,
   AuthIdentity,
   DirectoryEntity,
   MagicLinkPreview,
-  Representative,
   RoleDirectoryStats,
+  User,
 } from "@/types/auth";
-import { MAX_REPRESENTATIVES } from "@/types/auth";
+import { MAX_USERS } from "@/types/auth";
 import type { SubmissionStatus } from "@/types/domain";
 
 type MagicLinkRecord = MagicLinkPreview & {
@@ -18,7 +18,7 @@ type MagicLinkRecord = MagicLinkPreview & {
 
 type DirectoryState = {
   entities: DirectoryEntity[];
-  representatives: Representative[];
+  users: User[];
   magicLinks: MagicLinkRecord[];
   nextEntitySeq: number;
 };
@@ -37,7 +37,7 @@ const DIRECTORY_VERSION = 1;
 function createInitialState(): DirectoryState {
   return {
     entities: createDirectoryEntities(),
-    representatives: createDirectoryRepresentatives(),
+    users: createDirectoryUsers(),
     magicLinks: [],
     nextEntitySeq: 100,
   };
@@ -57,17 +57,26 @@ function loadDirectory(): DirectoryState {
       persistDirectory(seeded);
       return seeded;
     }
-    const parsed = JSON.parse(raw) as DirectoryState & { version?: number };
+    const parsed = JSON.parse(raw) as DirectoryState & {
+      version?: number;
+      representatives?: User[];
+      magicLinks?: Array<MagicLinkRecord & { kind: AuthIdentity["kind"] | "representative" }>;
+    };
     if (parsed.version !== DIRECTORY_VERSION || !parsed.entities) {
       persistDirectory(seeded);
       return seeded;
     }
-    return {
+    const loaded: DirectoryState = {
       entities: parsed.entities,
-      representatives: parsed.representatives ?? [],
-      magicLinks: parsed.magicLinks ?? [],
+      users: parsed.users ?? parsed.representatives ?? [],
+      magicLinks: (parsed.magicLinks ?? []).map((link) => ({
+        ...link,
+        kind: (link.kind as string) === "representative" ? "user" : link.kind,
+      })),
       nextEntitySeq: parsed.nextEntitySeq ?? 100,
     };
+    if (!parsed.users && parsed.representatives) persistDirectory(loaded);
+    return loaded;
   } catch {
     return seeded;
   }
@@ -95,14 +104,14 @@ function toIdentityFromEntity(entity: DirectoryEntity): AuthIdentity {
   };
 }
 
-function toIdentityFromRep(rep: Representative, entity: DirectoryEntity): AuthIdentity {
+function toIdentityFromUser(user: User, entity: DirectoryEntity): AuthIdentity {
   return {
-    kind: "representative",
-    id: rep.id,
+    kind: "user",
+    id: user.id,
     entityId: entity.id,
     role: entity.role,
-    name: rep.name,
-    email: rep.email,
+    name: user.name,
+    email: user.email,
     organizationName: entity.name,
   };
 }
@@ -111,21 +120,21 @@ function findIdentityByEmail(email: string): AuthIdentity | null {
   const normalized = normalizeEmail(email);
   const entity = state.entities.find((item) => item.email === normalized);
   if (entity) return toIdentityFromEntity(entity);
-  const rep = state.representatives.find((item) => item.email === normalized);
-  if (!rep) return null;
-  const parent = entityById(rep.entityId);
-  return parent ? toIdentityFromRep(rep, parent) : null;
+  const user = state.users.find((item) => item.email === normalized);
+  if (!user) return null;
+  const parent = entityById(user.entityId);
+  return parent ? toIdentityFromUser(user, parent) : null;
 }
 
 function emailTaken(email: string, exceptId?: string): boolean {
   const normalized = normalizeEmail(email);
   const entityHit = state.entities.some((item) => item.email === normalized && item.id !== exceptId);
-  const repHit = state.representatives.some((item) => item.email === normalized && item.id !== exceptId);
-  return entityHit || repHit;
+  const userHit = state.users.some((item) => item.email === normalized && item.id !== exceptId);
+  return entityHit || userHit;
 }
 
-function repsFor(entityId: string): Representative[] {
-  return state.representatives.filter((item) => item.entityId === entityId);
+function usersFor(entityId: string): User[] {
+  return state.users.filter((item) => item.entityId === entityId);
 }
 
 export const directoryDb = {
@@ -164,9 +173,9 @@ export const directoryDb = {
             return entity ? toIdentityFromEntity(entity) : null;
           })()
         : (() => {
-            const rep = state.representatives.find((item) => item.id === record.identityId);
-            const parent = rep ? entityById(rep.entityId) : undefined;
-            return rep && parent ? toIdentityFromRep(rep, parent) : null;
+            const user = state.users.find((item) => item.id === record.identityId);
+            const parent = user ? entityById(user.entityId) : undefined;
+            return user && parent ? toIdentityFromUser(user, parent) : null;
           })();
     if (!identity) return null;
     return clone(identity);
@@ -177,9 +186,9 @@ export const directoryDb = {
       const entity = entityById(id);
       return entity ? clone(toIdentityFromEntity(entity)) : null;
     }
-    const rep = state.representatives.find((item) => item.id === id);
-    const parent = rep ? entityById(rep.entityId) : undefined;
-    return rep && parent ? clone(toIdentityFromRep(rep, parent)) : null;
+    const user = state.users.find((item) => item.id === id);
+    const parent = user ? entityById(user.entityId) : undefined;
+    return user && parent ? clone(toIdentityFromUser(user, parent)) : null;
   },
 
   getStats(): RoleDirectoryStats[] {
@@ -190,24 +199,24 @@ export const directoryDb = {
         return {
           role,
           entityCount: entities.length,
-          representativeCount: state.representatives.filter((item) => ids.has(item.entityId)).length,
+          userCount: state.users.filter((item) => ids.has(item.entityId)).length,
         };
       },
     );
   },
 
-  listEntities(role: AppRole): Array<DirectoryEntity & { representatives: Representative[] }> {
+  listEntities(role: AppRole): Array<DirectoryEntity & { users: User[] }> {
     return clone(
       state.entities
         .filter((item) => item.role === role)
-        .map((entity) => ({ ...entity, representatives: repsFor(entity.id) })),
+        .map((entity) => ({ ...entity, users: usersFor(entity.id) })),
     );
   },
 
-  getEntity(id: string): (DirectoryEntity & { representatives: Representative[] }) | null {
+  getEntity(id: string): (DirectoryEntity & { users: User[] }) | null {
     const entity = entityById(id);
     if (!entity) return null;
-    return clone({ ...entity, representatives: repsFor(entity.id) });
+    return clone({ ...entity, users: usersFor(entity.id) });
   },
 
   addEntity(role: AppRole, name: string, email: string): DirectoryEntity | { error: string } {
@@ -238,39 +247,39 @@ export const directoryDb = {
       return { error: "The workspace must keep at least one admin." };
     }
     state.entities = state.entities.filter((item) => item.id !== id);
-    state.representatives = state.representatives.filter((item) => item.entityId !== id);
+    state.users = state.users.filter((item) => item.entityId !== id);
     persistDirectory(state);
     return { ok: true };
   },
 
-  addRepresentative(entityId: string, name: string, email: string): Representative | { error: string } {
+  addUser(entityId: string, name: string, email: string): User | { error: string } {
     const entity = entityById(entityId);
     if (!entity) return { error: "That organization was not found." };
-    if (entity.role === "admin") return { error: "Admin accounts cannot have representatives." };
-    const current = repsFor(entityId);
-    if (current.length >= MAX_REPRESENTATIVES) {
-      return { error: `An organization can have up to ${MAX_REPRESENTATIVES} representatives.` };
+    if (entity.role === "admin") return { error: "Admin accounts cannot have users." };
+    const current = usersFor(entityId);
+    if (current.length >= MAX_USERS) {
+      return { error: `An organization can have up to ${MAX_USERS} users.` };
     }
     const trimmedName = name.trim();
     const normalized = normalizeEmail(email);
     if (!trimmedName || !normalized) return { error: "Name and email are required." };
     if (!normalized.includes("@")) return { error: "Enter a valid email address." };
     if (emailTaken(normalized)) return { error: "That email is already in use." };
-    const representative: Representative = {
-      id: `${entityId}-r${Date.now().toString(36)}`,
+    const user: User = {
+      id: `${entityId}-u${Date.now().toString(36)}`,
       entityId,
       name: trimmedName,
       email: normalized,
     };
-    state.representatives.push(representative);
+    state.users.push(user);
     persistDirectory(state);
-    return clone(representative);
+    return clone(user);
   },
 
-  removeRepresentative(id: string): { error: string } | { ok: true } {
-    const exists = state.representatives.some((item) => item.id === id);
-    if (!exists) return { error: "That representative was not found." };
-    state.representatives = state.representatives.filter((item) => item.id !== id);
+  removeUser(id: string): { error: string } | { ok: true } {
+    const exists = state.users.some((item) => item.id === id);
+    if (!exists) return { error: "That user was not found." };
+    state.users = state.users.filter((item) => item.id !== id);
     persistDirectory(state);
     return { ok: true };
   },
@@ -319,10 +328,10 @@ export const directoryDb = {
     });
   },
 
-  getRepresentativesForProvider(providerId: number): Representative[] {
+  getUsersForProvider(providerId: number): User[] {
     const entity = state.entities.find((item) => item.role === "training-provider" && item.orgId === providerId);
     if (!entity) return [];
-    return clone(repsFor(entity.id));
+    return clone(usersFor(entity.id));
   },
 
   getProviderContact(providerId: number): { name: string; email: string } | null {
@@ -348,7 +357,7 @@ export const directoryDb = {
     const emails = new Set<string>();
     if (entity?.email) emails.add(entity.email);
     if (entity) {
-      for (const rep of repsFor(entity.id)) emails.add(rep.email);
+      for (const user of usersFor(entity.id)) emails.add(user.email);
     }
     if (backbone?.email) emails.add(backbone.email);
     return { providerName, recipients: Array.from(emails) };

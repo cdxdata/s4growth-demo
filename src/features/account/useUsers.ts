@@ -4,13 +4,13 @@ import { reportingApi } from "@/api/client";
 import { queryKeys } from "@/api/queryKeys";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { showToast } from "@/store/uiSlice";
-import { MAX_REPRESENTATIVES, type Representative } from "@/types/auth";
+import { MAX_USERS, type User } from "@/types/auth";
 
-export type RepresentativesSummary = {
+export type UsersSummary = {
   isLoading: boolean;
   error: Error | null;
   organizationName: string;
-  representatives: Representative[];
+  users: User[];
   atCapacity: boolean;
   name: string;
   email: string;
@@ -22,7 +22,7 @@ export type RepresentativesSummary = {
   remove: (id: string) => void;
 };
 
-export function useRepresentatives(): RepresentativesSummary {
+export function useUsers(): UsersSummary {
   const identity = useAppSelector((state) => state.auth.identity);
   const entityId = identity?.entityId ?? "";
   const dispatch = useAppDispatch();
@@ -38,37 +38,37 @@ export function useRepresentatives(): RepresentativesSummary {
   });
 
   const add = useMutation({
-    mutationFn: () => reportingApi.addRepresentative(entityId, name, email),
+    mutationFn: () => reportingApi.addUser(entityId, name, email),
     async onSuccess() {
       setName("");
       setEmail("");
       setFormError("");
-      dispatch(showToast("Representative added."));
+      dispatch(showToast("User added."));
       await queryClient.invalidateQueries({ queryKey: queryKeys.entityDirectory(entityId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.directoryStats });
     },
     onError(err) {
-      setFormError(err instanceof Error ? err.message : "Could not add that representative.");
+      setFormError(err instanceof Error ? err.message : "Could not add that user.");
     },
   });
 
   const remove = useMutation({
-    mutationFn: reportingApi.removeRepresentative,
+    mutationFn: reportingApi.removeUser,
     async onSuccess() {
-      dispatch(showToast("Representative removed."));
+      dispatch(showToast("User removed."));
       await queryClient.invalidateQueries({ queryKey: queryKeys.entityDirectory(entityId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.directoryStats });
     },
   });
 
-  const representatives = query.data?.representatives ?? [];
+  const users = query.data?.users ?? [];
 
   return {
     isLoading: query.isLoading,
-    error: query.error instanceof Error ? query.error : query.error ? new Error("Failed to load representatives") : null,
+    error: query.error instanceof Error ? query.error : query.error ? new Error("Failed to load users") : null,
     organizationName: identity?.organizationName ?? "Organization",
-    representatives,
-    atCapacity: representatives.length >= MAX_REPRESENTATIVES,
+    users,
+    atCapacity: users.length >= MAX_USERS,
     name,
     email,
     formError,

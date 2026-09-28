@@ -28,10 +28,17 @@ export function writeNotificationLog(record: NudgeLog): void {
   localStorage.setItem(STORAGE_KEYS.notificationLog, JSON.stringify(record));
 }
 
+function normalizeIdentity(value: Omit<AuthIdentity, "kind"> & { kind?: string }): AuthIdentity | null {
+  const kind = value.kind === "representative" ? "user" : value.kind;
+  if (kind !== "entity" && kind !== "user") return null;
+  return { ...value, kind };
+}
+
 export function readSession(): AuthIdentity | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.session);
-    return raw ? (JSON.parse(raw) as AuthIdentity) : null;
+    if (!raw) return null;
+    return normalizeIdentity(JSON.parse(raw) as Omit<AuthIdentity, "kind"> & { kind?: string });
   } catch {
     return null;
   }

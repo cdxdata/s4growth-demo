@@ -2,9 +2,9 @@ import { useState, type FormEvent } from "react";
 import { Header } from "@/components/layout/Header";
 import { Panel } from "@/components/ui/Panel";
 import { QueryState } from "@/components/ui/QueryState";
-import { MAX_REPRESENTATIVES, useRoleDirectory } from "@/features/admin/useRoleDirectory";
+import { MAX_USERS, useRoleDirectory } from "@/features/admin/useRoleDirectory";
 
-function RepresentativeForm({
+function UserForm({
   disabled,
   onAdd,
 }: {
@@ -32,7 +32,7 @@ function RepresentativeForm({
         required
       />
       <button className="btn secondary" type="submit" disabled={disabled}>
-        Add representative
+        Add user
       </button>
     </form>
   );
@@ -43,7 +43,7 @@ export function RoleDirectoryPage() {
 
   return (
     <>
-      <Header title={summary.title} subtitle="Add or remove organizations and their representatives." />
+      <Header title={summary.title} subtitle="Add or remove organizations and their users." />
       <button className="back" onClick={summary.goBack}>
         ← Directory
       </button>
@@ -69,7 +69,7 @@ export function RoleDirectoryPage() {
         </Panel>
         <div className="directory-list">
           {summary.entities.map((entity) => {
-            const atCap = entity.representatives.length >= MAX_REPRESENTATIVES;
+            const atCap = entity.users.length >= MAX_USERS;
             return (
               <Panel key={entity.id}>
                 <Panel.Head>
@@ -78,38 +78,35 @@ export function RoleDirectoryPage() {
                     Remove
                   </button>
                 </Panel.Head>
-                {summary.allowsRepresentatives ? (
-                  <div className="rep-block">
-                    <div className="rep-label">
-                      Representatives ({entity.representatives.length}/{MAX_REPRESENTATIVES})
+                {summary.allowsUsers ? (
+                  <div className="user-block">
+                    <div className="user-label">
+                      Users ({entity.users.length}/{MAX_USERS})
                     </div>
-                    {entity.representatives.length === 0 ? (
-                      <div className="empty-inline">No representatives yet.</div>
+                    {entity.users.length === 0 ? (
+                      <div className="empty-inline">No users yet.</div>
                     ) : (
-                      entity.representatives.map((rep) => (
-                        <div className="rep-row" key={rep.id}>
+                      entity.users.map((user) => (
+                        <div className="user-row" key={user.id}>
                           <div>
-                            <strong>{rep.name}</strong>
-                            <span>{rep.email}</span>
+                            <strong>{user.name}</strong>
+                            <span>{user.email}</span>
                           </div>
-                          <button className="link" type="button" onClick={() => summary.removeRepresentative(rep.id)}>
+                          <button className="link" type="button" onClick={() => summary.removeUser(user.id)}>
                             Remove
                           </button>
                         </div>
                       ))
                     )}
                     {atCap ? (
-                      <div className="helper">This organization already has four representatives.</div>
+                      <div className="helper">This organization already has four users.</div>
                     ) : (
-                      <RepresentativeForm
-                        disabled={false}
-                        onAdd={(name, email) => summary.addRepresentative(entity.id, name, email)}
-                      />
+                      <UserForm disabled={false} onAdd={(name, email) => summary.addUser(entity.id, name, email)} />
                     )}
                   </div>
                 ) : (
-                  <div className="rep-block">
-                    <div className="empty-inline">Admin accounts cannot have representatives.</div>
+                  <div className="user-block">
+                    <div className="empty-inline">Admin accounts cannot have users.</div>
                   </div>
                 )}
               </Panel>

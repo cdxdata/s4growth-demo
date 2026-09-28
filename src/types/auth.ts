@@ -18,7 +18,7 @@ export type DirectoryEntity = {
   programs?: string[];
 };
 
-export type Representative = {
+export type User = {
   id: string;
   entityId: string;
   name: string;
@@ -26,7 +26,7 @@ export type Representative = {
 };
 
 export type AuthIdentity = {
-  kind: "entity" | "representative";
+  kind: "entity" | "user";
   id: string;
   entityId: string;
   role: AppRole;
@@ -45,7 +45,7 @@ export type MagicLinkPreview = {
 export type RoleDirectoryStats = {
   role: AppRole;
   entityCount: number;
-  representativeCount: number;
+  userCount: number;
 };
 
-export const MAX_REPRESENTATIVES = 4;
+export const MAX_USERS = 4;
