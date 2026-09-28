@@ -2,7 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { useAppSelector } from "@/app/hooks";
 import { DEFAULT_PERIOD_ID } from "@/constants/periods";
-import { RepresentativesPage } from "@/features/account/RepresentativesPage";
+import { UsersPage } from "@/features/account/UsersPage";
 import { RoleDirectoryPage } from "@/features/admin/RoleDirectoryPage";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { RequireAuth } from "@/features/auth/RequireAuth";
@@ -51,7 +51,8 @@ export function App() {
           <Route path="/review" element={<ReviewPage />} />
           <Route path="/nudges" element={<NudgesPage />} />
           <Route path="/quarterly-draft" element={<QuarterlyDraftPage />} />
-          <Route path="/representatives" element={<RepresentativesPage />} />
+          <Route path="/users" element={<UsersPage />} />
+          <Route path="/representatives" element={<Navigate to="/users" replace />} />
         </Route>
       </Route>
     </Routes>

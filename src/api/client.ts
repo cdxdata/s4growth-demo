@@ -27,9 +27,9 @@ export const reportingApi = {
     return detail;
   },
 
-  async getProviderRepresentatives(providerId: number) {
+  async getProviderUsers(providerId: number) {
     await wait(NETWORK_DELAY_MS);
-    return directoryDb.getRepresentativesForProvider(providerId);
+    return directoryDb.getUsersForProvider(providerId);
   },
 
   async getProviderContact(providerId: number) {
@@ -113,16 +113,16 @@ export const reportingApi = {
     return result;
   },
 
-  async addRepresentative(entityId: string, name: string, email: string) {
+  async addUser(entityId: string, name: string, email: string) {
     await wait(NETWORK_DELAY_MS);
-    const result = directoryDb.addRepresentative(entityId, name, email);
+    const result = directoryDb.addUser(entityId, name, email);
     if ("error" in result) throw new Error(result.error);
     return result;
   },
 
-  async removeRepresentative(id: string) {
+  async removeUser(id: string) {
     await wait(NETWORK_DELAY_MS);
-    const result = directoryDb.removeRepresentative(id);
+    const result = directoryDb.removeUser(id);
     if ("error" in result) throw new Error(result.error);
     return result;
   },

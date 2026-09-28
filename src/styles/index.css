@@ -1689,7 +1689,7 @@ div.success {
   margin-top: 0.375rem;
 }
 
-.role-card-reps {
+.role-card-users {
   margin-top: 0.875rem;
   font-size: 0.75rem;
   font-weight: 650;
@@ -1717,18 +1717,18 @@ div.success {
   margin-top: 1.125rem;
 }
 
-.rep-block {
+.user-block {
   padding: 0.25rem 1.25rem 1.125rem;
 }
 
-.rep-label {
+.user-label {
   font-size: 0.75rem;
   font-weight: 700;
   color: #34475c;
   margin-bottom: 0.5rem;
 }
 
-.rep-row {
+.user-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1737,11 +1737,11 @@ div.success {
   border-top: 1px solid #eef2f6;
 }
 
-.rep-row strong {
+.user-row strong {
   display: block;
 }
 
-.rep-row span {
+.user-row span {
   display: block;
   color: var(--muted);
   font-size: 0.75rem;

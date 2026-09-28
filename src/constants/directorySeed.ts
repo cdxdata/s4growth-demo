@@ -1,5 +1,5 @@
 import { BACKBONES, EMPLOYMENT_LIAISONS, TRAINING_PROVIDERS } from "@/constants/organizations";
-import type { DirectoryEntity, Representative } from "@/types/auth";
+import type { DirectoryEntity, User } from "@/types/auth";
 
 const TP_PROGRAMS: Record<number, string[]> = {
   1: ["Advanced Manufacturing", "CNC Fundamentals"],
@@ -12,9 +12,9 @@ function slug(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/^\.|\.$/g, "");
 }
 
-function makeReps(entityId: string, people: Array<[string, string]>): Representative[] {
+function makeUsers(entityId: string, people: Array<[string, string]>): User[] {
   return people.map(([name, email], index) => ({
-    id: `${entityId}-r${index + 1}`,
+    id: `${entityId}-u${index + 1}`,
     entityId,
     name,
     email,
@@ -73,45 +73,45 @@ export function createDirectoryEntities(): DirectoryEntity[] {
   ];
 }
 
-export function createDirectoryRepresentatives(): Representative[] {
+export function createDirectoryUsers(): User[] {
   return [
-    ...makeReps("pm-1", [
+    ...makeUsers("pm-1", [
       ["Alicia Grant", "alicia.grant@s4g.test"],
       ["Marcus Hale", "marcus.hale@s4g.test"],
     ]),
-    ...makeReps("tp-1", [
+    ...makeUsers("tp-1", [
       ["Jordan Alvarez", "jordan.alvarez@s4g.test"],
       ["Miriam Stone", "miriam.stone@s4g.test"],
     ]),
-    ...makeReps("tp-2", [["Priya Raman", "priya.raman@s4g.test"]]),
-    ...makeReps("tp-3", [
+    ...makeUsers("tp-2", [["Priya Raman", "priya.raman@s4g.test"]]),
+    ...makeUsers("tp-3", [
       ["Carlos Bennett", "carlos.bennett@s4g.test"],
       ["Elena Cho", "elena.cho@s4g.test"],
       ["Nate Brooks", "nate.brooks@s4g.test"],
     ]),
-    ...makeReps("tp-7", [
+    ...makeUsers("tp-7", [
       ["Denise Harmon", "denise.harmon@s4g.test"],
       ["Will Harper", "will.harper@s4g.test"],
     ]),
-    ...makeReps("tp-9", [["Chris Lang", "chris.lang@s4g.test"]]),
-    ...makeReps("tp-12", [
+    ...makeUsers("tp-9", [["Chris Lang", "chris.lang@s4g.test"]]),
+    ...makeUsers("tp-12", [
       ["Imani Cole", "imani.cole@s4g.test"],
       ["Owen Briggs", "owen.briggs@s4g.test"],
       ["Sara Nguyen", "sara.nguyen@s4g.test"],
       ["Leo Patel", "leo.patel@s4g.test"],
     ]),
-    ...makeReps("bb-16", [
+    ...makeUsers("bb-16", [
       ["Keisha Monroe", "keisha.monroe@s4g.test"],
       ["David Ortiz", "david.ortiz@s4g.test"],
     ]),
-    ...makeReps("bb-17", [["Hannah Wells", "hannah.wells@s4g.test"]]),
-    ...makeReps("bb-19", [["Tom Reeves", "tom.reeves@s4g.test"]]),
-    ...makeReps("el-20", [
+    ...makeUsers("bb-17", [["Hannah Wells", "hannah.wells@s4g.test"]]),
+    ...makeUsers("bb-19", [["Tom Reeves", "tom.reeves@s4g.test"]]),
+    ...makeUsers("el-20", [
       ["Nina Brooks", "nina.brooks@s4g.test"],
       ["Paul Kim", "paul.kim@s4g.test"],
     ]),
-    ...makeReps("el-22", [["Rita Solano", "rita.solano@s4g.test"]]),
-    ...makeReps("el-23", [
+    ...makeUsers("el-22", [["Rita Solano", "rita.solano@s4g.test"]]),
+    ...makeUsers("el-23", [
       ["Jamal Price", "jamal.price@s4g.test"],
       ["Becky Stone", "becky.stone@s4g.test"],
       ["Omar Díaz", "omar.diaz@s4g.test"],

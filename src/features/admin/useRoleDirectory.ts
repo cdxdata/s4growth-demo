@@ -6,15 +6,15 @@ import { queryKeys } from "@/api/queryKeys";
 import { ROLE_LABELS, ROLE_PLURALS } from "@/constants/roles";
 import { showToast } from "@/store/uiSlice";
 import { useAppDispatch } from "@/app/hooks";
-import { APP_ROLES, MAX_REPRESENTATIVES, type AppRole, type DirectoryEntity, type Representative } from "@/types/auth";
+import { APP_ROLES, MAX_USERS, type AppRole, type DirectoryEntity, type User } from "@/types/auth";
 
 export type RoleDirectorySummary = {
   isLoading: boolean;
   error: Error | null;
   role: AppRole;
   title: string;
-  allowsRepresentatives: boolean;
-  entities: Array<DirectoryEntity & { representatives: Representative[] }>;
+  allowsUsers: boolean;
+  entities: Array<DirectoryEntity & { users: User[] }>;
   name: string;
   email: string;
   formError: string;
@@ -23,8 +23,8 @@ export type RoleDirectorySummary = {
   setEmail: (value: string) => void;
   addEntity: (event: FormEvent) => void;
   removeEntity: (id: string) => void;
-  addRepresentative: (entityId: string, name: string, email: string) => void;
-  removeRepresentative: (id: string) => void;
+  addUser: (entityId: string, name: string, email: string) => void;
+  removeUser: (id: string) => void;
   goBack: () => void;
 };
 
@@ -77,22 +77,22 @@ export function useRoleDirectory(): RoleDirectorySummary {
     },
   });
 
-  const addRep = useMutation({
-    mutationFn: ({ entityId, name: repName, email: repEmail }: { entityId: string; name: string; email: string }) =>
-      reportingApi.addRepresentative(entityId, repName, repEmail),
+  const addUserMut = useMutation({
+    mutationFn: ({ entityId, name: userName, email: userEmail }: { entityId: string; name: string; email: string }) =>
+      reportingApi.addUser(entityId, userName, userEmail),
     async onSuccess() {
-      dispatch(showToast("Representative added."));
+      dispatch(showToast("User added."));
       await invalidate();
     },
     onError(err) {
-      dispatch(showToast(err instanceof Error ? err.message : "Could not add that representative."));
+      dispatch(showToast(err instanceof Error ? err.message : "Could not add that user."));
     },
   });
 
-  const removeRep = useMutation({
-    mutationFn: reportingApi.removeRepresentative,
+  const removeUserMut = useMutation({
+    mutationFn: reportingApi.removeUser,
     async onSuccess() {
-      dispatch(showToast("Representative removed."));
+      dispatch(showToast("User removed."));
       await invalidate();
     },
   });
@@ -102,7 +102,7 @@ export function useRoleDirectory(): RoleDirectorySummary {
     error: query.error instanceof Error ? query.error : query.error ? new Error("Failed to load directory") : null,
     role,
     title: ROLE_PLURALS[role],
-    allowsRepresentatives: role !== "admin",
+    allowsUsers: role !== "admin",
     entities: query.data ?? [],
     name,
     email,
@@ -115,10 +115,10 @@ export function useRoleDirectory(): RoleDirectorySummary {
       addEntity.mutate();
     },
     removeEntity: (id) => removeEntity.mutate(id),
-    addRepresentative: (entityId, repName, repEmail) => addRep.mutate({ entityId, name: repName, email: repEmail }),
-    removeRepresentative: (id) => removeRep.mutate(id),
+    addUser: (entityId, userName, userEmail) => addUserMut.mutate({ entityId, name: userName, email: userEmail }),
+    removeUser: (id) => removeUserMut.mutate(id),
     goBack: () => navigate("/"),
   };
 }
 
-export { MAX_REPRESENTATIVES };
+export { MAX_USERS };
