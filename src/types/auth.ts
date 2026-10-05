@@ -18,7 +18,7 @@ export type DirectoryEntity = {
   programs?: string[];
 };
 
-export type User = {
+export type OrgContact = {
   id: string;
   entityId: string;
   name: string;
@@ -26,7 +26,7 @@ export type User = {
 };
 
 export type AuthIdentity = {
-  kind: "entity" | "user";
+  kind: "entity" | "orgContact";
   id: string;
   entityId: string;
   role: AppRole;
@@ -45,7 +45,13 @@ export type MagicLinkPreview = {
 export type RoleDirectoryStats = {
   role: AppRole;
   entityCount: number;
-  userCount: number;
+  orgContactCount: number;
 };
 
-export const MAX_USERS = 4;
+export const MAX_ORG_CONTACTS = 4;
+
+export function normalizeAuthKind(kind: string | undefined): AuthIdentity["kind"] | null {
+  if (kind === "entity") return "entity";
+  if (kind === "orgContact" || kind === "user" || kind === "representative") return "orgContact";
+  return null;
+}

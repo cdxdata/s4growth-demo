@@ -10,11 +10,11 @@ function RoleCard({ card, onOpen }: { card: AdminRoleCard; onOpen: () => void })
       <div className="role-card-count">{card.entityCount}</div>
       <div className="role-card-note">{card.entityCount === 1 ? "entity" : "entities"}</div>
       {card.role !== "admin" ? (
-        <div className="role-card-users">
-          {card.userCount} {card.userCount === 1 ? "user" : "users"}
+        <div className="role-card-contacts">
+          {card.orgContactCount} {card.orgContactCount === 1 ? "org contact" : "org contacts"}
         </div>
       ) : (
-        <div className="role-card-users">No users</div>
+        <div className="role-card-contacts">No org contacts</div>
       )}
     </button>
   );
@@ -25,7 +25,7 @@ export function AdminDashboardPage() {
 
   return (
     <>
-      <Header title="Workspace directory" subtitle="Entities and users by role." />
+      <Header title="Workspace directory" subtitle="Entities and org contacts by role." />
       <QueryState isLoading={summary.isLoading} error={summary.error}>
         <div className="role-tier">
           {summary.tierOne.map((card) => (

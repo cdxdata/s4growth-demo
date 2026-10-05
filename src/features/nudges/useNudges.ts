@@ -44,7 +44,7 @@ function buildNudgeMessage(input: {
     : `has not yet been received. Please submit the structured report and participant-data update so ${SYSTEM_LEAD} can complete monthly review.`;
   return {
     to: input.toName,
-    cc: input.ccNames.join(", ") || "No users",
+    cc: input.ccNames.join(", ") || "No org contacts",
     toEmail: input.toEmail,
     ccEmails: input.ccEmails,
     subject: `${flagged ? "Action needed" : "Not Started"}: ${input.month} Steps4Growth report`,
@@ -116,23 +116,23 @@ export function useNudges(): NudgesSummary {
     queryFn: () => reportingApi.getProviderContact(selectedProviderId),
     enabled: Number.isFinite(selectedProviderId),
   });
-  const usersQuery = useQuery({
-    queryKey: queryKeys.providerUsers(selectedProviderId),
-    queryFn: () => reportingApi.getProviderUsers(selectedProviderId),
+  const orgContactsQuery = useQuery({
+    queryKey: queryKeys.providerOrgContacts(selectedProviderId),
+    queryFn: () => reportingApi.getProviderOrgContacts(selectedProviderId),
     enabled: Number.isFinite(selectedProviderId),
   });
 
   const timelineStatus = followUp.length ? formatTimelineStatus(null, dueOn, asOf) : null;
   const contact = contactQuery.data;
-  const users = usersQuery.data ?? [];
+  const orgContacts = orgContactsQuery.data ?? [];
   const message =
     selected && contact
       ? buildNudgeMessage({
           organizationName: selected.label,
           toName: contact.name,
           toEmail: contact.email,
-          ccNames: users.map((user) => user.name),
-          ccEmails: users.map((user) => user.email),
+          ccNames: orgContacts.map((item) => item.name),
+          ccEmails: orgContacts.map((item) => item.email),
           month,
           dueDate,
           timelineStatus: timelineStatus ?? "—",

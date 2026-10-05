@@ -1,8 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { useAppSelector } from "@/app/hooks";
-import { DEFAULT_PERIOD_ID } from "@/constants/periods";
-import { UsersPage } from "@/features/account/UsersPage";
+import { OrgContactsPage } from "@/features/account/OrgContactsPage";
 import { RoleDirectoryPage } from "@/features/admin/RoleDirectoryPage";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { RequireAuth } from "@/features/auth/RequireAuth";
@@ -26,7 +25,7 @@ function LoginGate() {
 }
 
 function ManagerIntakePage() {
-  return <Navigate to={`/submissions/${DEFAULT_PERIOD_ID}/technical-report`} replace />;
+  return <Navigate to="/" replace />;
 }
 
 export function App() {
@@ -51,8 +50,9 @@ export function App() {
           <Route path="/review" element={<ReviewPage />} />
           <Route path="/nudges" element={<NudgesPage />} />
           <Route path="/quarterly-draft" element={<QuarterlyDraftPage />} />
-          <Route path="/users" element={<UsersPage />} />
-          <Route path="/representatives" element={<Navigate to="/users" replace />} />
+          <Route path="/org-contacts" element={<OrgContactsPage />} />
+          <Route path="/users" element={<Navigate to="/org-contacts" replace />} />
+          <Route path="/representatives" element={<Navigate to="/org-contacts" replace />} />
         </Route>
       </Route>
     </Routes>

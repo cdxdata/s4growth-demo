@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAppSelector } from "@/app/hooks";
 import { demoEdaSubmissionAdapter, type EdaExportConfirmation } from "@/adapters/edaSubmission";
 import { getContainingQuarter, getPeriodById } from "@/constants/periods";
-import { assembleQuarter } from "@/lib/quarterAssembler";
+import { assembleQuarterScope, recordsForWorkbook } from "@/lib/quarterAssembler";
 import { buildQuarterReport, type QuarterReport } from "@/lib/quarterReport";
 import { resolveProviderId } from "@/lib/providerScope";
 import type { QuarterlyDraft } from "@/types/domain";
@@ -24,10 +24,14 @@ export function useQuarterlyDraft(): QuarterlyDraftSummary {
   const identity = useAppSelector((state) => state.auth.identity);
   const providerId = resolveProviderId(identity);
   const byProvider = useAppSelector((state) => state.submissions.byProvider);
-  const records = byProvider[String(providerId)] ?? {};
+  const records = recordsForWorkbook(byProvider, providerId);
   const quarter = getContainingQuarter(getPeriodById(periodId));
-  const draft = assembleQuarter(quarter, records);
-  const report = buildQuarterReport(quarter, byProvider, identity?.organizationName ?? "NC A&T Project Office");
+  const draft = assembleQuarterScope(quarter, byProvider, providerId);
+  const organizationName =
+    identity?.role === "training-provider"
+      ? (identity.organizationName ?? "Training provider")
+      : "NC A&T Project Office";
+  const report = buildQuarterReport(quarter, byProvider, organizationName);
   const [isGenerating, setIsGenerating] = useState(false);
   const [confirmation, setConfirmation] = useState<EdaExportConfirmation | null>(null);
 
@@ -45,7 +49,7 @@ export function useQuarterlyDraft(): QuarterlyDraftSummary {
         setConfirmation(
           await demoEdaSubmissionAdapter.generate({
             quarterLabel: report.quarterLabel,
-            providerName: identity?.organizationName ?? "Piedmont Community College",
+            providerName: organizationName,
             records,
             draft,
           }),

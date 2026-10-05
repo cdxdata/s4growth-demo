@@ -2,9 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { DEFAULT_PERIOD_ID, getPeriodById } from "@/constants/periods";
-import { resolveProviderId } from "@/lib/providerScope";
+import { isProviderId, providerNameById, resolveProviderId } from "@/lib/providerScope";
 import { getPeriodSubmission, markPackageStatus, setProviderPeriodStatus, updateTechnical } from "@/store/submissionsSlice";
-import { updateDraft } from "@/store/intakeSlice";
 import { showToast } from "@/store/uiSlice";
 import { edaFillState, isTechnicalValid } from "@/lib/submissionDocuments";
 import {
@@ -39,32 +38,32 @@ export function useIntake() {
   const period = getPeriodById(periodId);
   const role = useAppSelector((state) => state.auth.identity?.role);
   const identity = useAppSelector((state) => state.auth.identity);
-  const organizationName = identity?.role === "training-provider"
-    ? (identity.organizationName ?? "Piedmont Community College")
-    : "Piedmont Community College";
   const providerId = resolveProviderId(identity);
+  const organizationName =
+    identity?.role === "training-provider"
+      ? (identity.organizationName ?? "Training provider")
+      : providerNameById(providerId);
   const record = useAppSelector((state) => getPeriodSubmission(state.submissions, periodId, providerId));
-  const intakeDraft = useAppSelector((state) => state.intake.draft);
   const isTrainingProvider = role === "training-provider";
-  const storedForm = isTrainingProvider || periodParam ? record.technical : intakeDraft;
   const form = {
-    ...storedForm,
-    testimonial: storedForm.testimonial ?? emptyTestimonial(),
-    mediaLink: storedForm.mediaLink ?? emptyMediaLinkRow(),
+    ...record.technical,
+    testimonial: record.technical.testimonial ?? emptyTestimonial(),
+    mediaLink: record.technical.mediaLink ?? emptyMediaLinkRow(),
   };
   const edaFilled = edaFillState(record.eda) === "filled";
   const [error, setError] = useState("");
   const [showErrors, setShowErrors] = useState(false);
 
   useEffect(() => {
+    if (!isProviderId(providerId)) return;
     const patch = applyTechnicalDefaults(form, record.eda);
     if (Object.keys(patch).length === 0) return;
-    persist(patch);
-  }, [form, record.eda]);
+    dispatch(updateTechnical({ providerId, periodId, patch }));
+  }, [dispatch, periodId, providerId, record.eda]);
 
   function persist(patch: Partial<IntakeDraft>) {
+    if (!isProviderId(providerId)) return;
     dispatch(updateTechnical({ providerId, periodId, patch }));
-    if (!isTrainingProvider && !periodParam) dispatch(updateDraft(patch));
   }
 
   function replace<K extends keyof IntakeDraft>(key: K, value: IntakeDraft[K]) {
@@ -199,7 +198,7 @@ export function useIntake() {
     },
     saveDraft() {
       dispatch(showToast("Technical report saved."));
-      navigate(isTrainingProvider ? "/submissions" : "/providers/1");
+      navigate(isTrainingProvider ? "/submissions" : "/");
     },
     submit() {
       if (!isTechnicalValid(form)) {
@@ -209,7 +208,7 @@ export function useIntake() {
       }
       setError("");
       setShowErrors(false);
-      if (isTrainingProvider) {
+      if (isTrainingProvider || !isProviderId(providerId)) {
         dispatch(showToast("Technical report saved."));
         navigate("/submissions");
         return;
@@ -220,7 +219,7 @@ export function useIntake() {
       navigate(`/providers/${providerId}`);
     },
     goBack() {
-      navigate(isTrainingProvider ? "/submissions" : "/providers/1");
+      navigate(isTrainingProvider ? "/submissions" : "/");
     },
   };
 }

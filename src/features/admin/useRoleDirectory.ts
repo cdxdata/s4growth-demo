@@ -6,15 +6,15 @@ import { queryKeys } from "@/api/queryKeys";
 import { ROLE_LABELS, ROLE_PLURALS } from "@/constants/roles";
 import { showToast } from "@/store/uiSlice";
 import { useAppDispatch } from "@/app/hooks";
-import { APP_ROLES, MAX_USERS, type AppRole, type DirectoryEntity, type User } from "@/types/auth";
+import { APP_ROLES, MAX_ORG_CONTACTS, type AppRole, type DirectoryEntity, type OrgContact } from "@/types/auth";
 
 export type RoleDirectorySummary = {
   isLoading: boolean;
   error: Error | null;
   role: AppRole;
   title: string;
-  allowsUsers: boolean;
-  entities: Array<DirectoryEntity & { users: User[] }>;
+  allowsOrgContacts: boolean;
+  entities: Array<DirectoryEntity & { orgContacts: OrgContact[] }>;
   name: string;
   email: string;
   formError: string;
@@ -23,8 +23,8 @@ export type RoleDirectorySummary = {
   setEmail: (value: string) => void;
   addEntity: (event: FormEvent) => void;
   removeEntity: (id: string) => void;
-  addUser: (entityId: string, name: string, email: string) => void;
-  removeUser: (id: string) => void;
+  addOrgContact: (entityId: string, name: string, email: string) => void;
+  removeOrgContact: (id: string) => void;
   goBack: () => void;
 };
 
@@ -77,22 +77,22 @@ export function useRoleDirectory(): RoleDirectorySummary {
     },
   });
 
-  const addUserMut = useMutation({
-    mutationFn: ({ entityId, name: userName, email: userEmail }: { entityId: string; name: string; email: string }) =>
-      reportingApi.addUser(entityId, userName, userEmail),
+  const addOrgContactMut = useMutation({
+    mutationFn: ({ entityId, name: contactName, email: contactEmail }: { entityId: string; name: string; email: string }) =>
+      reportingApi.addOrgContact(entityId, contactName, contactEmail),
     async onSuccess() {
-      dispatch(showToast("User added."));
+      dispatch(showToast("Org contact added."));
       await invalidate();
     },
     onError(err) {
-      dispatch(showToast(err instanceof Error ? err.message : "Could not add that user."));
+      dispatch(showToast(err instanceof Error ? err.message : "Could not add that org contact."));
     },
   });
 
-  const removeUserMut = useMutation({
-    mutationFn: reportingApi.removeUser,
+  const removeOrgContactMut = useMutation({
+    mutationFn: reportingApi.removeOrgContact,
     async onSuccess() {
-      dispatch(showToast("User removed."));
+      dispatch(showToast("Org contact removed."));
       await invalidate();
     },
   });
@@ -102,7 +102,7 @@ export function useRoleDirectory(): RoleDirectorySummary {
     error: query.error instanceof Error ? query.error : query.error ? new Error("Failed to load directory") : null,
     role,
     title: ROLE_PLURALS[role],
-    allowsUsers: role !== "admin",
+    allowsOrgContacts: role !== "admin",
     entities: query.data ?? [],
     name,
     email,
@@ -115,10 +115,11 @@ export function useRoleDirectory(): RoleDirectorySummary {
       addEntity.mutate();
     },
     removeEntity: (id) => removeEntity.mutate(id),
-    addUser: (entityId, userName, userEmail) => addUserMut.mutate({ entityId, name: userName, email: userEmail }),
-    removeUser: (id) => removeUserMut.mutate(id),
+    addOrgContact: (entityId, contactName, contactEmail) =>
+      addOrgContactMut.mutate({ entityId, name: contactName, email: contactEmail }),
+    removeOrgContact: (id) => removeOrgContactMut.mutate(id),
     goBack: () => navigate("/"),
   };
 }
 
-export { MAX_USERS };
+export { MAX_ORG_CONTACTS };

@@ -3,7 +3,7 @@ import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { EDA_SEGMENTS, type EdaSegmentId } from "@/constants/eda";
 import { getPeriodById } from "@/constants/periods";
 import { edaReviewSections } from "@/lib/edaReviewSections";
-import { resolveProviderId } from "@/lib/providerScope";
+import { isProviderId, resolveProviderId } from "@/lib/providerScope";
 import { normalizeEdaReview } from "@/lib/reviewModel";
 import { getPeriodSubmission, setEdaMaxStep } from "@/store/submissionsSlice";
 import type { FormReviewState } from "@/types/submissions";
@@ -39,7 +39,9 @@ export function useEdaReview(): EdaReviewSummary {
       navigate("/submissions");
     },
     editSection(id) {
-      dispatch(setEdaMaxStep({ providerId, periodId, step: EDA_SEGMENTS.findIndex((item) => item.id === id) }));
+      if (isProviderId(providerId)) {
+        dispatch(setEdaMaxStep({ providerId, periodId, step: EDA_SEGMENTS.findIndex((item) => item.id === id) }));
+      }
       navigate(`/submissions/${periodId}/eda/${id}`);
     },
     done() {

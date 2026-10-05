@@ -9,7 +9,7 @@ export type AdminRoleCard = {
   role: AppRole;
   title: string;
   entityCount: number;
-  userCount: number;
+  orgContactCount: number;
 };
 
 export type AdminDashboardSummary = {
@@ -27,7 +27,7 @@ function toCard(stats: RoleDirectoryStats[]): (role: AppRole) => AdminRoleCard {
       role,
       title: ROLE_PLURALS[role],
       entityCount: match?.entityCount ?? 0,
-      userCount: match?.userCount ?? 0,
+      orgContactCount: match?.orgContactCount ?? 0,
     };
   };
 }

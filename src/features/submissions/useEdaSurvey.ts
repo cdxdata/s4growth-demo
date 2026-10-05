@@ -5,7 +5,7 @@ import { EDA_SEGMENTS, EDA_SEGMENT_IDS, isEdaSegmentId, type EdaFieldKey, type E
 import { getPeriodById } from "@/constants/periods";
 import { syncProgramSections } from "@/lib/edaProgramRecords";
 import { applyKnownEdaDefaults, createEmptyParticipant, getProviderKnownData } from "@/lib/providerKnownData";
-import { resolveProviderId } from "@/lib/providerScope";
+import { isProviderId, resolveProviderId } from "@/lib/providerScope";
 import { filledPrograms, isEdaSegmentValid, isTrainingProviderSegmentValid } from "@/lib/submissionDocuments";
 import { normalizeEdaReview } from "@/lib/reviewModel";
 import { getPeriodSubmission, saveEdaDraft, setEdaMaxStep, updateEda } from "@/store/submissionsSlice";
@@ -91,20 +91,26 @@ export function useEdaSurvey(): EdaSurveySummary {
 
   let redirectTo: string | null = null;
   if (!periodId || period.kind === "quarterly") redirectTo = "/submissions";
+  else if (!isProviderId(providerId)) redirectTo = "/submissions";
   else if (!isEdaSegmentId(segmentId)) redirectTo = `/submissions/${periodId}/eda/training-provider`;
   else if (segmentIndex > reachableIndex) redirectTo = `/submissions/${periodId}/eda/${EDA_SEGMENT_IDS[reachableIndex]}`;
+
+  function persistEda(patch: Partial<EdaSurveyDraft>) {
+    if (!isProviderId(providerId) || !periodId) return;
+    dispatch(updateEda({ providerId, periodId, patch }));
+  }
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [currentId]);
 
   useEffect(() => {
-    if (!periodId) return;
+    if (!periodId || !isProviderId(providerId)) return;
     const patch = applyKnownEdaDefaults(record.eda, known, { year: period.year, month: period.month });
     if (Object.keys(patch).length > 0) {
-      dispatch(updateEda({ providerId, periodId,  patch }));
+      dispatch(updateEda({ providerId, periodId, patch }));
     }
-  }, [dispatch, known, period.month, period.year, periodId, record.eda]);
+  }, [dispatch, known, period.month, period.year, periodId, providerId]);
 
   return {
     ready: !redirectTo,
@@ -143,39 +149,33 @@ export function useEdaSurvey(): EdaSurveySummary {
       const name = event.target.name as EdaFieldKey;
       const value = event.target.value;
       const next = { ...record.eda, [name]: value };
-      dispatch(
-        updateEda({
-          providerId,
-          periodId,
-          patch: name === "trainingProvider" ? { trainingProvider: value, ...syncProgramSections(next) } : { [name]: value },
-        }),
-      );
+      persistEda(name === "trainingProvider" ? { trainingProvider: value, ...syncProgramSections(next) } : { [name]: value });
     },
     changeProgram(index, value) {
       const nextPrograms = [...programs];
       nextPrograms[index] = value;
       const next = { ...record.eda, trainingPrograms: nextPrograms };
-      dispatch(updateEda({ providerId, periodId,  patch: { trainingPrograms: nextPrograms, ...syncProgramSections(next) } }));
+      persistEda({ trainingPrograms: nextPrograms, ...syncProgramSections(next) });
     },
     addProgram() {
       if (programs.length >= MAX_PROGRAMS) return;
       const nextPrograms = [...programs, ""];
       const next = { ...record.eda, trainingPrograms: nextPrograms };
-      dispatch(updateEda({ providerId, periodId,  patch: { trainingPrograms: nextPrograms, ...syncProgramSections(next) } }));
+      persistEda({ trainingPrograms: nextPrograms, ...syncProgramSections(next) });
     },
     removeProgram(index) {
       if (programs.length <= 1) return;
       const nextPrograms = programs.filter((_, item) => item !== index);
       const next = { ...record.eda, trainingPrograms: nextPrograms };
-      dispatch(updateEda({ providerId, periodId,  patch: { trainingPrograms: nextPrograms, ...syncProgramSections(next) } }));
+      persistEda({ trainingPrograms: nextPrograms, ...syncProgramSections(next) });
     },
     toggleNoParticipants() {
-      dispatch(updateEda({ providerId, periodId,  patch: { noParticipants: !record.eda.noParticipants } }));
+      persistEda({ noParticipants: !record.eda.noParticipants });
     },
     updateProgramRecord(list, index, patch) {
       const current = record.eda[list] as Array<Record<string, unknown>>;
       const next = current.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item));
-      dispatch(updateEda({ providerId, periodId,  patch: { [list]: next } as Partial<EdaSurveyDraft> }));
+      persistEda({ [list]: next } as Partial<EdaSurveyDraft>);
     },
     toggleInstitutionalHour(index, value) {
       const current = record.eda.institutional[index];
@@ -184,61 +184,55 @@ export function useEdaSurvey(): EdaSurveySummary {
         ? current.programHours.filter((item) => item !== value)
         : [...current.programHours, value];
       const institutional = record.eda.institutional.map((item, itemIndex) => (itemIndex === index ? { ...item, programHours } : item));
-      dispatch(updateEda({ providerId, periodId,  patch: { institutional } }));
+      persistEda({ institutional });
     },
     toggleCompletionSkip(index) {
       const completions = record.eda.completions.map((item, itemIndex) =>
         itemIndex === index ? { ...item, skipNoCompletions: !item.skipNoCompletions } : item,
       );
-      dispatch(updateEda({ providerId, periodId,  patch: { completions } }));
+      persistEda({ completions });
     },
     toggleNonCompletionSkip(index) {
       const nonCompletions = record.eda.nonCompletions.map((item, itemIndex) =>
         itemIndex === index ? { ...item, skipReasons: !item.skipReasons } : item,
       );
-      dispatch(updateEda({ providerId, periodId,  patch: { nonCompletions } }));
+      persistEda({ nonCompletions });
     },
     updateNonCompletionReason(index, key, value) {
       const nonCompletions = record.eda.nonCompletions.map((item, itemIndex) =>
         itemIndex === index ? { ...item, reasons: { ...item.reasons, [key]: value } } : item,
       );
-      dispatch(updateEda({ providerId, periodId,  patch: { nonCompletions } }));
+      persistEda({ nonCompletions });
     },
     updateParticipant(index, patch) {
       const participants = record.eda.participants.map((person, item) => (item === index ? { ...person, ...patch } : person));
-      dispatch(updateEda({ providerId, periodId,  patch: { participants } }));
+      persistEda({ participants });
     },
     updateParticipantDate(index, field, part, value) {
       const participants = record.eda.participants.map((person, item) =>
         item === index ? { ...person, [field]: { ...person[field], [part]: value } } : person,
       );
-      dispatch(updateEda({ providerId, periodId,  patch: { participants } }));
+      persistEda({ participants });
     },
     addParticipant() {
-      dispatch(
-        updateEda({
-          providerId,
-          periodId,
-          patch: {
-            noParticipants: false,
-            participants: [
-              ...record.eda.participants,
-              createEmptyParticipant(record.eda.trainingProvider || organizationName, programOptions[0] ?? ""),
-            ],
-          },
-        }),
-      );
+      persistEda({
+        noParticipants: false,
+        participants: [
+          ...record.eda.participants,
+          createEmptyParticipant(record.eda.trainingProvider || organizationName, programOptions[0] ?? ""),
+        ],
+      });
     },
     removeParticipant(index) {
-      dispatch(updateEda({ providerId, periodId,  patch: { participants: record.eda.participants.filter((_, item) => item !== index) } }));
+      persistEda({ participants: record.eda.participants.filter((_, item) => item !== index) });
     },
     saveSubmission() {
-      dispatch(saveEdaDraft({ providerId, periodId }));
+      if (isProviderId(providerId) && periodId) dispatch(saveEdaDraft({ providerId, periodId }));
       dispatch(showToast("EDA Survey saved."));
       navigate("/submissions");
     },
     saveAndContinue() {
-      dispatch(saveEdaDraft({ providerId, periodId }));
+      if (isProviderId(providerId) && periodId) dispatch(saveEdaDraft({ providerId, periodId }));
       if (!isEdaSegmentValid(currentId, record.eda)) {
         setShowErrors(true);
         setError(
@@ -252,7 +246,7 @@ export function useEdaSurvey(): EdaSurveySummary {
       setError("");
       setShowErrors(false);
       const nextIndex = Math.min(segmentIndex + 1, EDA_SEGMENTS.length - 1);
-      dispatch(setEdaMaxStep({ providerId, periodId, step: nextIndex }));
+      if (isProviderId(providerId) && periodId) dispatch(setEdaMaxStep({ providerId, periodId, step: nextIndex }));
       if (segmentIndex === EDA_SEGMENTS.length - 1) {
         navigate(`/submissions/${periodId}/eda/review`);
         return;

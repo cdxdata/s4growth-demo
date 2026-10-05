@@ -11,7 +11,7 @@ const ROUTE_ROLES: Array<{ test: (path: string) => boolean; roles: AppRole[] }> 
   { test: (path) => path.startsWith("/quarterly-draft"), roles: ["project-manager"] },
   { test: (path) => path.startsWith("/intake"), roles: ["project-manager", "training-provider"] },
   { test: (path) => path.startsWith("/submissions"), roles: ["training-provider"] },
-  { test: (path) => path.startsWith("/users"), roles: ["project-manager", "training-provider", "backbone", "employment-liaison"] },
+  { test: (path) => path.startsWith("/org-contacts") || path.startsWith("/users"), roles: ["project-manager", "training-provider", "backbone", "employment-liaison"] },
 ];
 
 export function RequireAuth() {

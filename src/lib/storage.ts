@@ -1,4 +1,4 @@
-import type { AuthIdentity } from "@/types/auth";
+import { normalizeAuthKind, type AuthIdentity } from "@/types/auth";
 import type { NudgeLog } from "@/types/domain";
 
 export const STORAGE_KEYS = {
@@ -29,8 +29,8 @@ export function writeNotificationLog(record: NudgeLog): void {
 }
 
 function normalizeIdentity(value: Omit<AuthIdentity, "kind"> & { kind?: string }): AuthIdentity | null {
-  const kind = value.kind === "representative" ? "user" : value.kind;
-  if (kind !== "entity" && kind !== "user") return null;
+  const kind = normalizeAuthKind(value.kind);
+  if (!kind) return null;
   return { ...value, kind };
 }
 
