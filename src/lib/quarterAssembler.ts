@@ -1,4 +1,5 @@
 import { MONTH_NAMES, type ReportingPeriod } from "@/constants/periods";
+import { isProviderId } from "@/lib/providerScope";
 import { technicalHasStarted, technicalNarratives } from "@/lib/technicalReport";
 import type { QuarterlyDraft } from "@/types/domain";
 import type { PeriodSubmissionRecord } from "@/types/submissions";
@@ -29,15 +30,10 @@ export function quarterMonthIds(quarter: ReportingPeriod): string[] {
   );
 }
 
-export function assembleQuarter(
+function assembleFromSelected(
   quarter: ReportingPeriod,
-  records: Record<string, PeriodSubmissionRecord>,
+  selected: Array<{ periodId: string; record: PeriodSubmissionRecord }>,
 ): AssembledQuarter {
-  const ids = quarterMonthIds(quarter);
-  const selected = ids.map((periodId) => ({ periodId, record: records[periodId] })).filter(
-    (item): item is { periodId: string; record: PeriodSubmissionRecord } => Boolean(item.record),
-  );
-
   const enrolled = selected.reduce(
     (total, item) => total + sumRows(item.record.eda.admissions, (row) => number(row.enrolled)),
     0,
@@ -80,10 +76,64 @@ export function assembleQuarter(
     plan: join("plan"),
     quote: story || "No participant testimonial was submitted for this quarter.",
     fromIntake: narratives.length > 0,
-    sources: selected.map(({ periodId, record }) => ({
-      periodId,
-      label: `${MONTH_NAMES[Number(periodId.slice(-2)) - 1]} ${quarter.year}`,
-      status: record.status,
-    })),
+    sources: uniqueSources(quarter, selected),
   };
+}
+
+function uniqueSources(
+  quarter: ReportingPeriod,
+  selected: Array<{ periodId: string; record: PeriodSubmissionRecord }>,
+): QuarterSource[] {
+  const seen = new Map<string, PeriodSubmissionRecord["status"]>();
+  for (const item of selected) {
+    if (!seen.has(item.periodId)) seen.set(item.periodId, item.record.status);
+  }
+  return [...seen.entries()].map(([periodId, status]) => ({
+    periodId,
+    label: `${MONTH_NAMES[Number(periodId.slice(-2)) - 1]} ${quarter.year}`,
+    status,
+  }));
+}
+
+function monthRecords(
+  records: Record<string, PeriodSubmissionRecord>,
+  ids: string[],
+): Array<{ periodId: string; record: PeriodSubmissionRecord }> {
+  return ids
+    .map((periodId) => ({ periodId, record: records[periodId] }))
+    .filter((item): item is { periodId: string; record: PeriodSubmissionRecord } => Boolean(item.record));
+}
+
+export function assembleQuarter(
+  quarter: ReportingPeriod,
+  records: Record<string, PeriodSubmissionRecord>,
+): AssembledQuarter {
+  return assembleFromSelected(quarter, monthRecords(records, quarterMonthIds(quarter)));
+}
+
+export function assembleQuarterScope(
+  quarter: ReportingPeriod,
+  byProvider: Record<string, Record<string, PeriodSubmissionRecord>>,
+  providerId: number | null,
+): AssembledQuarter {
+  const ids = quarterMonthIds(quarter);
+  const bags = isProviderId(providerId) ? [byProvider[String(providerId)] ?? {}] : Object.values(byProvider);
+  return assembleFromSelected(
+    quarter,
+    bags.flatMap((records) => monthRecords(records, ids)),
+  );
+}
+
+export function recordsForWorkbook(
+  byProvider: Record<string, Record<string, PeriodSubmissionRecord>>,
+  providerId: number | null,
+): Record<string, PeriodSubmissionRecord> {
+  if (isProviderId(providerId)) return byProvider[String(providerId)] ?? {};
+  const out: Record<string, PeriodSubmissionRecord> = {};
+  for (const [id, periods] of Object.entries(byProvider)) {
+    for (const [periodId, record] of Object.entries(periods)) {
+      out[`${id}:${periodId}`] = record;
+    }
+  }
+  return out;
 }

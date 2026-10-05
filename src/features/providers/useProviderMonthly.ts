@@ -5,7 +5,7 @@ import { getPeriodById } from "@/constants/periods";
 import { edaReviewSections, type EdaReviewSection } from "@/lib/edaReviewSections";
 import { notifyStatusChange } from "@/lib/notifyStatus";
 import { MONTH_NAMES } from "@/constants/periods";
-import { providerNameById } from "@/lib/providerScope";
+import { isProviderId, parseProviderRouteId, providerNameById } from "@/lib/providerScope";
 import { REVIEW_FORMS, REVIEW_UNIT_TOTAL, changedReviewFieldIds, fieldsForForm, formLabel, normalizeEdaReview, reviewSignature, scoredFormCount, statusAfterDone, statusAfterSaveLater } from "@/lib/reviewModel";
 import {
   captureReviewSnapshot,
@@ -38,7 +38,7 @@ function cloneReview(review: PackageReview): PackageReview {
 
 export function useProviderMonthly() {
   const { id } = useParams();
-  const providerId = Number(id ?? 1);
+  const providerId = parseProviderRouteId(id);
   const dispatch = useAppDispatch();
   const [, setSearchParams] = useSearchParams();
   const periodId = useAppSelector((state) => state.workspace.selectedPeriodId);
@@ -76,7 +76,7 @@ export function useProviderMonthly() {
   }, [periodId, providerId]);
 
   useEffect(() => {
-    if (!changedKey) return;
+    if (!isProviderId(providerId) || !changedKey) return;
     dispatch(reconcileReviewChanges({ providerId, periodId }));
   }, [changedKey, dispatch, periodId, providerId]);
 
@@ -92,22 +92,25 @@ export function useProviderMonthly() {
     canFinish,
     lastMail: mail ?? null,
     setScore(formId: ReviewFormId, score: FormScore) {
-      if (formId === "eda-survey") return;
+      if (!isProviderId(providerId) || formId === "eda-survey") return;
       dispatch(setFormScore({ providerId, periodId, formId, score: record.review[formId].score === score ? null : score }));
     },
     setEdaScore(sectionId: EdaSegmentId, score: FormScore) {
+      if (!isProviderId(providerId)) return;
       const current = edaReview.sections[sectionId]?.score ?? null;
       dispatch(setEdaSectionScore({ providerId, periodId, sectionId, score: current === score ? null : score }));
     },
     setMark(formId: ReviewFormId, fieldId: string, mark: FieldMark) {
+      if (!isProviderId(providerId)) return;
       const current = record.review[formId].fieldMarks[fieldId];
       dispatch(setFieldMark({ providerId, periodId, formId, fieldId, mark: current === mark ? null : mark }));
     },
     goBack() {
-      dispatch(restoreReview({ providerId, periodId, review: reviewBaseline.current }));
+      if (isProviderId(providerId)) dispatch(restoreReview({ providerId, periodId, review: reviewBaseline.current }));
       setSearchParams({}, { replace: true });
     },
     saveLater() {
+      if (!isProviderId(providerId)) return;
       dispatch(captureReviewSnapshot({ providerId, periodId }));
       const next = statusAfterSaveLater(record.review);
       if (next) {
@@ -123,6 +126,7 @@ export function useProviderMonthly() {
       dispatch(showToast("Review progress saved."));
     },
     finish() {
+      if (!isProviderId(providerId)) return;
       const next = statusAfterDone(record.review);
       if (!next) {
         dispatch(showToast("Score every form before marking the review done."));

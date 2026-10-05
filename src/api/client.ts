@@ -27,9 +27,9 @@ export const reportingApi = {
     return detail;
   },
 
-  async getProviderUsers(providerId: number) {
+  async getProviderOrgContacts(providerId: number) {
     await wait(NETWORK_DELAY_MS);
-    return directoryDb.getUsersForProvider(providerId);
+    return directoryDb.getOrgContactsForProvider(providerId);
   },
 
   async getProviderContact(providerId: number) {
@@ -113,16 +113,16 @@ export const reportingApi = {
     return result;
   },
 
-  async addUser(entityId: string, name: string, email: string) {
+  async addOrgContact(entityId: string, name: string, email: string) {
     await wait(NETWORK_DELAY_MS);
-    const result = directoryDb.addUser(entityId, name, email);
+    const result = directoryDb.addOrgContact(entityId, name, email);
     if ("error" in result) throw new Error(result.error);
     return result;
   },
 
-  async removeUser(id: string) {
+  async removeOrgContact(id: string) {
     await wait(NETWORK_DELAY_MS);
-    const result = directoryDb.removeUser(id);
+    const result = directoryDb.removeOrgContact(id);
     if ("error" in result) throw new Error(result.error);
     return result;
   },

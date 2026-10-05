@@ -13,6 +13,7 @@ import {
   getPreviousBaselineName,
   getPreviousPeriod,
 } from "@/constants/periods";
+import { dashboardStatusCounts, overlayStoredStatus } from "@/lib/dashboardStatus";
 import {
   asOfDateForPeriod,
   formatCompletedDate,
@@ -72,9 +73,13 @@ function medianTimelineDays(
 ): number | null {
   return medianNumber(
     providers.map((provider) => {
-      const overlay = stored[String(provider.id)];
-      const status = overlay?.status ?? provider.submissionStatus;
-      const completedOn = status === "Complete" ? overlay?.completedOn ?? provider.completedOn : null;
+      const overlay = overlayStoredStatus({
+        submissionStatus: provider.submissionStatus,
+        completedOn: provider.completedOn,
+        statusChangedOn: null,
+        stored: stored[String(provider.id)],
+      });
+      const completedOn = overlay.submissionStatus === "Complete" ? overlay.completedOn : null;
       return timelineStatusDays(completedOn, provider.dueOn, asOf);
     }),
   );
@@ -173,21 +178,23 @@ export function useDashboard(): DashboardSummary {
   const rows = useMemo(
     () =>
       (data?.providers ?? []).map((provider) => {
-        const stored = storedStatuses[String(provider.id)];
-        const submissionStatus = stored?.status ?? provider.submissionStatus;
-        const completedOn = stored?.completedOn ?? provider.completedOn;
-        const statusChangedOn = stored?.statusChangedOn ?? provider.statusChangedOn;
-        const timelineCompletedOn = submissionStatus === "Complete" ? completedOn : null;
+        const stored = overlayStoredStatus({
+          submissionStatus: provider.submissionStatus,
+          completedOn: provider.completedOn,
+          statusChangedOn: provider.statusChangedOn,
+          stored: storedStatuses[String(provider.id)],
+        });
+        const timelineCompletedOn = stored.submissionStatus === "Complete" ? stored.completedOn : null;
         return {
           id: provider.id,
           name: provider.name,
           backbone: provider.backbone,
           category: "Training provider" as const,
-          submissionStatus,
+          submissionStatus: stored.submissionStatus,
           completedDate: formatCompletedDate(timelineCompletedOn),
           timelineStatus: formatTimelineStatus(timelineCompletedOn, provider.dueOn, asOf),
           timelineDays: timelineStatusDays(timelineCompletedOn, provider.dueOn, asOf),
-          lastNotified: formatLastNotified(statusChangedOn, submissionStatus),
+          lastNotified: formatLastNotified(stored.statusChangedOn, stored.submissionStatus),
         };
       }),
     [asOf, data?.providers, storedStatuses],
@@ -211,25 +218,22 @@ export function useDashboard(): DashboardSummary {
 
   const derived = useMemo(() => {
     const subawardees = rows.filter((row) => row.category === "Training provider");
-    const completeCount = subawardees.filter((row) => row.submissionStatus === "Complete").length;
-    const awaitingReview = subawardees.filter((row) => row.submissionStatus === "Awaiting review");
-    const inReview = subawardees.filter((row) => row.submissionStatus === "In review");
-    const needAttention = [...awaitingReview, ...inReview];
-    const missingFlagged = subawardees.filter((row) => row.submissionStatus === "Missing/flagged").length;
-    const notStarted = subawardees.filter((row) => row.submissionStatus === "Not started").length;
+    const counts = dashboardStatusCounts(subawardees.map((row) => row.submissionStatus));
     return {
-      completeCount,
+      completeCount: counts.completeCount,
       totalCount: rows.length,
-      needAttentionCount: needAttention.length,
+      needAttentionCount: counts.needAttentionCount,
       needAttentionNotes: [
-        needAttention[0]?.timelineStatus ?? "No submissions need attention",
-        countLabel(awaitingReview.length, "Awaiting Review", "Awaiting Reviews"),
-        countLabel(inReview.length, "In review", "In review"),
+        subawardees.find((row) => row.submissionStatus === "Awaiting review")?.timelineStatus ??
+          subawardees.find((row) => row.submissionStatus === "In review")?.timelineStatus ??
+          "No submissions need attention",
+        countLabel(counts.awaitingReview, "Awaiting Review", "Awaiting Reviews"),
+        countLabel(counts.inReview, "In review", "In review"),
       ],
-      followUpCount: missingFlagged + notStarted,
+      followUpCount: counts.followUpCount,
       followUpNotes: [
-        countLabel(missingFlagged, "Missing/flagged submission", "Missing/flagged submissions"),
-        countLabel(notStarted, "Not started submission", "Not started submissions"),
+        countLabel(counts.missingFlagged, "Missing/flagged submission", "Missing/flagged submissions"),
+        countLabel(counts.notStarted, "Not started submission", "Not started submissions"),
       ],
       completeNote: completeCategoryNote(subawardees),
       medianDays: medianNumber(rows.map((row) => row.timelineDays)),
@@ -314,6 +318,9 @@ export function useDashboard(): DashboardSummary {
     },
     openReview: () => navigate("/review"),
     openNudges: () => navigate("/nudges"),
-    openIntake: () => navigate("/providers/1?tab=monthly"),
+    openIntake: () => {
+      const id = visibleRows[0]?.id;
+      navigate(id != null ? `/providers/${id}?tab=monthly` : "/");
+    },
   };
 }

@@ -26,6 +26,7 @@ import {
   reviewValueSnapshot,
 } from "@/lib/reviewModel";
 import { ACHIEVEMENT_KEYWORDS, CHALLENGE_KEYWORDS, applyTechnicalDefaults, defaultIntakeDraft, filledTechnicalDraft } from "@/lib/technicalReport";
+import { SEPTEMBER_STATUSES, demoStatusForPeriod } from "@/lib/demoStatuses";
 import type { IntakeDraft, SubmissionStatus } from "@/types/domain";
 import type {
   EdaParticipant,
@@ -50,23 +51,7 @@ const LAST_EDA_STEP = 9;
 const COMPLETE_MONTHS = ["2026-04", "2026-05", "2026-06", "2026-07", "2026-08"] as const;
 const ALL_MONTHS = [...COMPLETE_MONTHS, "2026-09"] as const;
 
-export const SEPTEMBER_STATUSES: Record<number, SubmissionStatus> = {
-  1: "Missing/flagged",
-  2: "Complete",
-  3: "Not started",
-  4: "Complete",
-  5: "In review",
-  6: "Awaiting review",
-  7: "Complete",
-  8: "Not started",
-  9: "Complete",
-  10: "In review",
-  11: "Awaiting review",
-  12: "Missing/flagged",
-  13: "Complete",
-  14: "Not started",
-  15: "In review",
-};
+export { SEPTEMBER_STATUSES, demoStatusForPeriod };
 
 const FIRST_NAMES = ["Maya", "Andre", "Keisha", "Luis", "Priya", "Jonah", "Amelia", "Darius", "Naomi", "Eli"];
 const LAST_NAMES = ["Foster", "Hale", "Nguyen", "Brooks", "Patel", "Ortiz", "Cole", "Ward", "Simmons", "Reed"];
@@ -347,7 +332,7 @@ function completeRecord(org: TrainingProviderOrg, periodId: string): PeriodSubmi
 }
 
 function septemberRecord(org: TrainingProviderOrg): PeriodSubmissionRecord {
-  const status = SEPTEMBER_STATUSES[org.id] ?? "Not started";
+  const status = demoStatusForPeriod("2026-09", org.id);
   if (status === "Not started") return emptyPeriodRecord();
 
   const eda = filledEda(org, "2026-09");
@@ -455,7 +440,7 @@ export function createDemoSubmissionsState(): DemoSubmissionsState {
       providerStatus[periodId][String(org.id)] = statusEntry("Complete", periodId, org.id);
     }
     periods["2026-09"] = septemberRecord(org);
-    const septemberStatus = SEPTEMBER_STATUSES[org.id] ?? "Not started";
+    const septemberStatus = demoStatusForPeriod("2026-09", org.id);
     providerStatus["2026-09"][String(org.id)] = statusEntry(septemberStatus, "2026-09", org.id);
     if (septemberStatus === "Missing/flagged") mail.push(statusMail(org, septemberStatus));
     byProvider[String(org.id)] = periods;

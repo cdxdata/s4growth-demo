@@ -2,7 +2,7 @@ import { type ChangeEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { getPeriodById } from "@/constants/periods";
-import { resolveProviderId } from "@/lib/providerScope";
+import { isProviderId, resolveProviderId } from "@/lib/providerScope";
 import { getPeriodSubmission, updateInvoice } from "@/store/submissionsSlice";
 import { showToast } from "@/store/uiSlice";
 import type { InvoiceDraft } from "@/types/submissions";
@@ -34,6 +34,7 @@ export function useInvoice(): InvoiceSummary {
     showMarks: record.review.invoice.score === "Flagged",
     fieldMarks: record.review.invoice.fieldMarks,
     change(event) {
+      if (!isProviderId(providerId)) return;
       dispatch(updateInvoice({ providerId, periodId, patch: { [event.target.name]: event.target.value } }));
     },
     goBack() {

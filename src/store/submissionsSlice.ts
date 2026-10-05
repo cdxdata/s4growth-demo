@@ -1,6 +1,8 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { emptyEdaDraft, emptyInvoiceDraft } from "@/constants/eda";
 import { createDemoSubmissionsState, SUBMISSIONS_STORAGE_KEY, SUBMISSIONS_STORAGE_VERSION } from "@/lib/demoSeed";
+import { persistSubmissionsNow } from "@/lib/submissionsPersist";
+import { isProviderId } from "@/lib/providerScope";
 import { defaultIntakeDraft } from "@/lib/storage";
 import { DEMO_TODAY } from "@/lib/reportingDates";
 import {
@@ -80,8 +82,7 @@ function seedState(): SubmissionsState {
 }
 
 function persist(state: SubmissionsState) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  persistSubmissionsNow(state);
 }
 
 function migrate(raw: unknown): SubmissionsState | null {
@@ -153,10 +154,11 @@ function ensureRecord(state: SubmissionsState, providerId: number, periodId: str
   return state.byProvider[key][periodId];
 }
 
-type Scoped = { providerId?: number; periodId: string };
+type Scoped = { providerId: number; periodId: string };
 
-function scopeId(action: Scoped): number {
-  return action.providerId ?? 1;
+function ensureScoped(state: SubmissionsState, action: Scoped): PeriodSubmissionRecord | null {
+  if (!isProviderId(action.providerId) || !action.periodId) return null;
+  return ensureRecord(state, action.providerId, action.periodId);
 }
 
 const submissionsSlice = createSlice({
@@ -164,51 +166,51 @@ const submissionsSlice = createSlice({
   initialState,
   reducers: {
     updateTechnical(state, action: PayloadAction<Scoped & { patch: Partial<IntakeDraft> }>) {
-      const record = ensureRecord(state, scopeId(action.payload), action.payload.periodId);
+      const record = ensureScoped(state, action.payload);
+      if (!record) return;
       record.technical = { ...record.technical, ...action.payload.patch };
       reconcileChangedMarks(record);
-      persist(state);
     },
     updateEda(state, action: PayloadAction<Scoped & { patch: Partial<EdaSurveyDraft> }>) {
-      const record = ensureRecord(state, scopeId(action.payload), action.payload.periodId);
+      const record = ensureScoped(state, action.payload);
+      if (!record) return;
       record.eda = { ...record.eda, ...action.payload.patch };
       reconcileChangedMarks(record);
-      persist(state);
     },
     saveEdaDraft(state, action: PayloadAction<Scoped>) {
-      ensureRecord(state, scopeId(action.payload), action.payload.periodId);
-      persist(state);
+      ensureScoped(state, action.payload);
     },
     updateInvoice(state, action: PayloadAction<Scoped & { patch: Partial<InvoiceDraft> }>) {
-      const record = ensureRecord(state, scopeId(action.payload), action.payload.periodId);
+      const record = ensureScoped(state, action.payload);
+      if (!record) return;
       record.invoice = { ...record.invoice, ...action.payload.patch };
       reconcileChangedMarks(record);
-      persist(state);
     },
     setEdaMaxStep(state, action: PayloadAction<Scoped & { step: number }>) {
-      const record = ensureRecord(state, scopeId(action.payload), action.payload.periodId);
+      const record = ensureScoped(state, action.payload);
+      if (!record) return;
       record.edaMaxStep = Math.max(record.edaMaxStep, action.payload.step);
-      persist(state);
     },
     submitMonthlyPackage(state, action: PayloadAction<Scoped>) {
-      const record = ensureRecord(state, scopeId(action.payload), action.payload.periodId);
+      const record = ensureScoped(state, action.payload);
+      if (!record) return;
       if (record.status !== "Approved") record.status = "Submitted";
-      persist(state);
     },
     markPackageStatus(state, action: PayloadAction<Scoped & { status: MonthlyPackageStatus }>) {
-      const record = ensureRecord(state, scopeId(action.payload), action.payload.periodId);
+      const record = ensureScoped(state, action.payload);
+      if (!record) return;
       record.status = action.payload.status;
-      persist(state);
     },
     setFormScore(state, action: PayloadAction<Scoped & { formId: ReviewFormId; score: FormScore | null }>) {
-      const record = ensureRecord(state, scopeId(action.payload), action.payload.periodId);
+      const record = ensureScoped(state, action.payload);
+      if (!record) return;
       if (action.payload.formId === "eda-survey") return;
       record.review[action.payload.formId].score = action.payload.score;
       if (action.payload.score !== "Flagged") record.review[action.payload.formId].fieldMarks = {};
-      persist(state);
     },
     setEdaSectionScore(state, action: PayloadAction<Scoped & { sectionId: string; score: FormScore | null }>) {
-      const record = ensureRecord(state, scopeId(action.payload), action.payload.periodId);
+      const record = ensureScoped(state, action.payload);
+      if (!record) return;
       const eda = normalizeEdaReview(record.review["eda-survey"]);
       const section = eda.sections[action.payload.sectionId];
       if (!section) return;
@@ -219,10 +221,10 @@ const submissionsSlice = createSlice({
         fieldMarks: mergeEdaFieldMarks(eda.sections),
         sections: eda.sections,
       };
-      persist(state);
     },
     setFieldMark(state, action: PayloadAction<Scoped & { formId: ReviewFormId; fieldId: string; mark: FieldMark | null }>) {
-      const record = ensureRecord(state, scopeId(action.payload), action.payload.periodId);
+      const record = ensureScoped(state, action.payload);
+      if (!record) return;
       if (action.payload.formId === "eda-survey") {
         const eda = normalizeEdaReview(record.review["eda-survey"]);
         const sectionId = edaSectionFromFieldId(action.payload.fieldId);
@@ -244,7 +246,6 @@ const submissionsSlice = createSlice({
           fieldMarks: mergeEdaFieldMarks(eda.sections),
           sections: eda.sections,
         };
-        persist(state);
         return;
       }
       if (action.payload.mark) {
@@ -259,34 +260,33 @@ const submissionsSlice = createSlice({
       );
       record.review[action.payload.formId].score = passed.score;
       record.review[action.payload.formId].fieldMarks = passed.fieldMarks;
-      persist(state);
     },
     restoreReview(state, action: PayloadAction<Scoped & { review: PackageReview }>) {
-      const record = ensureRecord(state, scopeId(action.payload), action.payload.periodId);
+      const record = ensureScoped(state, action.payload);
+      if (!record) return;
       record.review = normalizePackageReview(action.payload.review);
-      persist(state);
     },
     setReviewPublished(state, action: PayloadAction<Scoped & { signature: string | null }>) {
-      const record = ensureRecord(state, scopeId(action.payload), action.payload.periodId);
+      const record = ensureScoped(state, action.payload);
+      if (!record) return;
       record.reviewPublished = action.payload.signature;
-      persist(state);
     },
     captureReviewSnapshot(state, action: PayloadAction<Scoped>) {
-      const record = ensureRecord(state, scopeId(action.payload), action.payload.periodId);
+      const record = ensureScoped(state, action.payload);
+      if (!record) return;
       record.reviewFieldSnapshot = reviewValueSnapshot(record);
-      persist(state);
     },
     reconcileReviewChanges(state, action: PayloadAction<Scoped>) {
-      const record = ensureRecord(state, scopeId(action.payload), action.payload.periodId);
-      const before = record.review;
+      const record = ensureScoped(state, action.payload);
+      if (!record) return;
       reconcileChangedMarks(record);
-      if (record.review !== before) persist(state);
     },
     setProviderPeriodStatus(
       state,
       action: PayloadAction<{ providerId: number; periodId: string; status: SubmissionStatus }>,
     ) {
       const { providerId, periodId, status } = action.payload;
+      if (!isProviderId(providerId) || !periodId) return;
       if (!state.providerStatus[periodId]) state.providerStatus[periodId] = {};
       state.providerStatus[periodId][String(providerId)] = {
         status,
@@ -297,16 +297,12 @@ const submissionsSlice = createSlice({
       if (status === "Complete") record.status = "Approved";
       if (status === "Missing/flagged") record.status = "Action Needed";
       if (status === "In review" || status === "Awaiting review") record.status = "Submitted";
-      persist(state);
     },
     recordMail(state, action: PayloadAction<ReviewMail>) {
       state.mail = [action.payload, ...state.mail].slice(0, 40);
-      persist(state);
     },
     resetDemoData() {
-      const next = seedState();
-      persist(next);
-      return next;
+      return seedState();
     },
   },
 });
@@ -335,15 +331,17 @@ export const submissionsReducer = submissionsSlice.reducer;
 export function getPeriodSubmission(
   state: SubmissionsState,
   periodId: string,
-  providerId = 1,
+  providerId: number | null | undefined,
 ): PeriodSubmissionRecord {
+  if (!isProviderId(providerId)) return emptyRecord();
   return state.byProvider[String(providerId)]?.[periodId] ?? emptyRecord();
 }
 
 export function getProviderPeriodStatus(
   state: SubmissionsState,
   periodId: string,
-  providerId: number,
+  providerId: number | null | undefined,
 ): ProviderPeriodStatus | null {
+  if (!isProviderId(providerId)) return null;
   return state.providerStatus[periodId]?.[String(providerId)] ?? null;
 }

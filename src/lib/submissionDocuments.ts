@@ -43,9 +43,9 @@ export function filledPrograms(programs: string[]): string[] {
 }
 
 export function technicalFillState(draft: IntakeDraft): DocumentFillState {
+  if (!technicalHasStarted(draft)) return "blank";
   if (isTechnicalDraftValid(draft)) return "filled";
-  if (technicalHasStarted(draft)) return "Incomplete";
-  return "blank";
+  return "Incomplete";
 }
 
 export function isTechnicalValid(draft: IntakeDraft): boolean {
@@ -259,7 +259,7 @@ export function documentList(record: PeriodSubmissionRecord): SubmissionDocument
 }
 
 export function canSubmitMonthlyPackage(record: PeriodSubmissionRecord): boolean {
-  return technicalFillState(record.technical) === "filled" && edaFillState(record.eda) === "filled";
+  return isTechnicalValid(record.technical) && edaFillState(record.eda) === "filled";
 }
 
 export function displayDocumentState(state: DocumentFillState): string {

@@ -4,8 +4,9 @@ import { providersForPeriod } from "@/api/dashboardByPeriod";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { DEFAULT_PERIOD_ID, getElapsedQuarterMonths, getPeriodById, getPeriodDueDate } from "@/constants/periods";
 import { notifyStatusChange } from "@/lib/notifyStatus";
-import { resolveProviderId } from "@/lib/providerScope";
+import { isProviderId, resolveProviderId } from "@/lib/providerScope";
 import { normalizeEdaReview } from "@/lib/reviewModel";
+import { cardStatuses } from "@/lib/cardStatuses";
 import { canSubmitMonthlyPackage, documentList } from "@/lib/submissionDocuments";
 import { getPeriodSubmission, getProviderPeriodStatus, submitMonthlyPackage } from "@/store/submissionsSlice";
 import { showToast } from "@/store/uiSlice";
@@ -61,21 +62,7 @@ function providerStatusForPeriod(
   return providersForPeriod(periodId).find((item) => item.name === organizationName)?.submissionStatus ?? "Not started";
 }
 
-export function cardStatuses(
-  packageStatus: MonthlyPackageStatus,
-  submissionStatus: SubmissionStatus,
-): { status: MonthlyPackageStatus; reviewStatus: SubmissionStatus | null } {
-  if (submissionStatus === "Missing/flagged") {
-    return { status: "Action Needed", reviewStatus: "Missing/flagged" };
-  }
-  if (submissionStatus === "Complete") {
-    return { status: "Approved", reviewStatus: null };
-  }
-  if (packageStatus === "Submitted") {
-    return { status: "Submitted", reviewStatus: submissionStatus };
-  }
-  return { status: packageStatus, reviewStatus: null };
-}
+export { cardStatuses } from "@/lib/cardStatuses";
 
 export function useMonthlySubmissions(): MonthlySubmissionsSummary {
   const navigate = useNavigate();
@@ -130,6 +117,7 @@ export function useMonthlySubmissions(): MonthlySubmissionsSummary {
       if (kind === "invoice") navigate(`/submissions/${periodId}/invoice/review`);
     },
     submitPackage(periodId) {
+      if (!isProviderId(providerId)) return;
       const record = getPeriodSubmission(submissions, periodId, providerId);
       if (!canSubmitMonthlyPackage(record) || record.status !== "Action Needed") return;
       dispatch(submitMonthlyPackage({ providerId, periodId }));

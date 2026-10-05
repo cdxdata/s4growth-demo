@@ -4,13 +4,13 @@ import { reportingApi } from "@/api/client";
 import { queryKeys } from "@/api/queryKeys";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { showToast } from "@/store/uiSlice";
-import { MAX_USERS, type User } from "@/types/auth";
+import { MAX_ORG_CONTACTS, type OrgContact } from "@/types/auth";
 
-export type UsersSummary = {
+export type OrgContactsSummary = {
   isLoading: boolean;
   error: Error | null;
   organizationName: string;
-  users: User[];
+  orgContacts: OrgContact[];
   atCapacity: boolean;
   name: string;
   email: string;
@@ -22,7 +22,7 @@ export type UsersSummary = {
   remove: (id: string) => void;
 };
 
-export function useUsers(): UsersSummary {
+export function useOrgContacts(): OrgContactsSummary {
   const identity = useAppSelector((state) => state.auth.identity);
   const entityId = identity?.entityId ?? "";
   const dispatch = useAppDispatch();
@@ -38,37 +38,37 @@ export function useUsers(): UsersSummary {
   });
 
   const add = useMutation({
-    mutationFn: () => reportingApi.addUser(entityId, name, email),
+    mutationFn: () => reportingApi.addOrgContact(entityId, name, email),
     async onSuccess() {
       setName("");
       setEmail("");
       setFormError("");
-      dispatch(showToast("User added."));
+      dispatch(showToast("Org contact added."));
       await queryClient.invalidateQueries({ queryKey: queryKeys.entityDirectory(entityId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.directoryStats });
     },
     onError(err) {
-      setFormError(err instanceof Error ? err.message : "Could not add that user.");
+      setFormError(err instanceof Error ? err.message : "Could not add that org contact.");
     },
   });
 
   const remove = useMutation({
-    mutationFn: reportingApi.removeUser,
+    mutationFn: reportingApi.removeOrgContact,
     async onSuccess() {
-      dispatch(showToast("User removed."));
+      dispatch(showToast("Org contact removed."));
       await queryClient.invalidateQueries({ queryKey: queryKeys.entityDirectory(entityId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.directoryStats });
     },
   });
 
-  const users = query.data?.users ?? [];
+  const orgContacts = query.data?.orgContacts ?? [];
 
   return {
     isLoading: query.isLoading,
-    error: query.error instanceof Error ? query.error : query.error ? new Error("Failed to load users") : null,
+    error: query.error instanceof Error ? query.error : query.error ? new Error("Failed to load org contacts") : null,
     organizationName: identity?.organizationName ?? "Organization",
-    users,
-    atCapacity: users.length >= MAX_USERS,
+    orgContacts,
+    atCapacity: orgContacts.length >= MAX_ORG_CONTACTS,
     name,
     email,
     formError,

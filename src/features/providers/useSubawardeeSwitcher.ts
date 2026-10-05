@@ -27,7 +27,7 @@ export type SubawardeeSwitcherSummary = {
   choose: (id: number) => void;
 };
 
-export function useSubawardeeSwitcher(currentId: number): SubawardeeSwitcherSummary {
+export function useSubawardeeSwitcher(currentId: number | null): SubawardeeSwitcherSummary {
   const navigate = useNavigate();
   const location = useLocation();
   const periodId = useAppSelector((state) => state.workspace.selectedPeriodId);

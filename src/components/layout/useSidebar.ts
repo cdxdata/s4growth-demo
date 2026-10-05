@@ -32,13 +32,13 @@ export function useSidebar(): SidebarSummary {
       end: item.to === "/",
     })),
     teamName: identity
-      ? identity.kind === "user"
+      ? identity.kind === "orgContact"
         ? identity.name
         : identity.organizationName
       : fallbackName,
     teamSubtitle: identity
-      ? identity.kind === "user"
-        ? `${ROLE_LABELS[identity.role]} user`
+      ? identity.kind === "orgContact"
+        ? `${ROLE_LABELS[identity.role]} org contact`
         : ROLE_LABELS[identity.role]
       : fallbackSubtitle,
     canSignOut: Boolean(identity),
@@ -51,7 +51,7 @@ export function useSidebar(): SidebarSummary {
       if (id === "review") return pathname.startsWith("/review");
       if (id === "nudges") return pathname.startsWith("/nudges");
       if (id === "ppr") return pathname.startsWith("/quarterly-draft");
-      if (id === "users") return pathname.startsWith("/users");
+      if (id === "org-contacts") return pathname.startsWith("/org-contacts") || pathname.startsWith("/users");
       if (id === "project-manager") return pathname.includes("/project-manager");
       if (id === "training-provider") return pathname.includes("/training-provider");
       if (id === "backbone") return pathname.includes("/admin/roles/backbone") || pathname === "/admin/roles/backbone";

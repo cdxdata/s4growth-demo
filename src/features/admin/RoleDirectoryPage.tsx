@@ -2,9 +2,9 @@ import { useState, type FormEvent } from "react";
 import { Header } from "@/components/layout/Header";
 import { Panel } from "@/components/ui/Panel";
 import { QueryState } from "@/components/ui/QueryState";
-import { MAX_USERS, useRoleDirectory } from "@/features/admin/useRoleDirectory";
+import { MAX_ORG_CONTACTS, useRoleDirectory } from "@/features/admin/useRoleDirectory";
 
-function UserForm({
+function OrgContactForm({
   disabled,
   onAdd,
 }: {
@@ -32,7 +32,7 @@ function UserForm({
         required
       />
       <button className="btn secondary" type="submit" disabled={disabled}>
-        Add user
+        Add org contact
       </button>
     </form>
   );
@@ -43,7 +43,7 @@ export function RoleDirectoryPage() {
 
   return (
     <>
-      <Header title={summary.title} subtitle="Add or remove organizations and their users." />
+      <Header title={summary.title} subtitle="Add or remove organizations and their org contacts." />
       <button className="back" onClick={summary.goBack}>
         ← Directory
       </button>
@@ -69,7 +69,7 @@ export function RoleDirectoryPage() {
         </Panel>
         <div className="directory-list">
           {summary.entities.map((entity) => {
-            const atCap = entity.users.length >= MAX_USERS;
+            const atCap = entity.orgContacts.length >= MAX_ORG_CONTACTS;
             return (
               <Panel key={entity.id}>
                 <Panel.Head>
@@ -78,35 +78,35 @@ export function RoleDirectoryPage() {
                     Remove
                   </button>
                 </Panel.Head>
-                {summary.allowsUsers ? (
-                  <div className="user-block">
-                    <div className="user-label">
-                      Users ({entity.users.length}/{MAX_USERS})
+                {summary.allowsOrgContacts ? (
+                  <div className="org-contact-block">
+                    <div className="org-contact-label">
+                      Org contacts ({entity.orgContacts.length}/{MAX_ORG_CONTACTS})
                     </div>
-                    {entity.users.length === 0 ? (
-                      <div className="empty-inline">No users yet.</div>
+                    {entity.orgContacts.length === 0 ? (
+                      <div className="empty-inline">No org contacts yet.</div>
                     ) : (
-                      entity.users.map((user) => (
-                        <div className="user-row" key={user.id}>
+                      entity.orgContacts.map((contact) => (
+                        <div className="org-contact-row" key={contact.id}>
                           <div>
-                            <strong>{user.name}</strong>
-                            <span>{user.email}</span>
+                            <strong>{contact.name}</strong>
+                            <span>{contact.email}</span>
                           </div>
-                          <button className="link" type="button" onClick={() => summary.removeUser(user.id)}>
+                          <button className="link" type="button" onClick={() => summary.removeOrgContact(contact.id)}>
                             Remove
                           </button>
                         </div>
                       ))
                     )}
                     {atCap ? (
-                      <div className="helper">This organization already has four users.</div>
+                      <div className="helper">This organization already has four org contacts.</div>
                     ) : (
-                      <UserForm disabled={false} onAdd={(name, email) => summary.addUser(entity.id, name, email)} />
+                      <OrgContactForm disabled={false} onAdd={(name, email) => summary.addOrgContact(entity.id, name, email)} />
                     )}
                   </div>
                 ) : (
-                  <div className="user-block">
-                    <div className="empty-inline">Admin accounts cannot have users.</div>
+                  <div className="org-contact-block">
+                    <div className="empty-inline">Admin accounts cannot have org contacts.</div>
                   </div>
                 )}
               </Panel>

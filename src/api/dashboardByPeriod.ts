@@ -1,5 +1,7 @@
 import { TRAINING_PROVIDERS } from "@/constants/organizations";
 import { getPeriodById, getPeriodDueIso } from "@/constants/periods";
+import { dashboardStatusCounts } from "@/lib/dashboardStatus";
+import { demoStatusForPeriod } from "@/lib/demoStatuses";
 import { addDays } from "@/lib/reportingDates";
 import type { ActivityEvent, DashboardPayload, ImpactMetric, Provider, SubmissionStatus } from "@/types/domain";
 
@@ -58,11 +60,56 @@ const quarterlyImpact = (beforeDays: string, afterDays: string, beforePct: strin
   },
 ];
 
+const SEPTEMBER_TIMELINE: Record<number, [number | null, number | null]> = {
+  1: [-2, -2],
+  2: [-5, -5],
+  3: [null, null],
+  4: [0, 0],
+  5: [-1, 3],
+  6: [1, 1],
+  7: [-7, -7],
+  8: [null, null],
+  9: [-2, -2],
+  10: [2, 2],
+  11: [0, 4],
+  12: [-3, -1],
+  13: [-6, -6],
+  14: [null, null],
+  15: [3, 3],
+};
+
 function allCompleteRows(): RowSpec[] {
   return TRAINING_PROVIDERS.map((org, index) => {
     const offset = -((org.id * 3 + index) % 9);
     return ["Complete", offset, offset];
   });
+}
+
+function shiftOffset(value: number | null, days: number): number | null {
+  return value === null ? null : value + days;
+}
+
+function rowsForPeriod(periodId: string): RowSpec[] {
+  if (periodId !== "2026-09" && periodId !== "2026-q3") return allCompleteRows();
+  const shift = periodId === "2026-q3" ? -13 : 0;
+  return TRAINING_PROVIDERS.map((org) => {
+    const [completedOffset, notifiedOffset] = SEPTEMBER_TIMELINE[org.id] ?? [null, null];
+    return [
+      demoStatusForPeriod(periodId, org.id),
+      shiftOffset(completedOffset, shift),
+      shiftOffset(notifiedOffset, shift),
+    ];
+  });
+}
+
+function snapshotStats(periodId: string): DashboardPayload["stats"] {
+  const counts = dashboardStatusCounts(TRAINING_PROVIDERS.map((org) => demoStatusForPeriod(periodId, org.id)));
+  return {
+    organizationCount: 24,
+    completeSubmissions: counts.completeCount,
+    needsFollowUp: counts.followUpCount,
+    openFlags: counts.missingFlagged,
+  };
 }
 
 const COMPLETE_PRIORITY: ActivityEvent[] = [
@@ -90,85 +137,69 @@ function providersFromSpecs(dueOn: string, specs: RowSpec[]): Provider[] {
 
 const PERIOD_VIEWS: Record<string, PeriodDashboard> = {
   "2026-04": {
-    stats: { organizationCount: 24, completeSubmissions: 15, needsFollowUp: 0, openFlags: 0 },
+    stats: snapshotStats("2026-04"),
     completeNote: "15 Training Providers submitted",
     followUpNote: "No follow-up required",
     panelTitle: "April submission status",
     panelSubtitle: "Third Thursday due date: April 16, 2026",
     pageSubtitle: "A clear view of this month’s reporting readiness.",
     impact: monthlyImpact("11 days", "4 days", "18%", "42%", "7 days saved", "+24 points"),
-    rows: allCompleteRows(),
+    rows: rowsForPeriod("2026-04"),
     priority: COMPLETE_PRIORITY,
   },
   "2026-05": {
-    stats: { organizationCount: 24, completeSubmissions: 15, needsFollowUp: 0, openFlags: 0 },
+    stats: snapshotStats("2026-05"),
     completeNote: "15 Training Providers submitted",
     followUpNote: "No follow-up required",
     panelTitle: "May submission status",
     panelSubtitle: "Third Thursday due date: May 21, 2026",
     pageSubtitle: "A clear view of this month’s reporting readiness.",
     impact: monthlyImpact("9 days", "3 days", "24%", "51%", "6 days saved", "+27 points"),
-    rows: allCompleteRows(),
+    rows: rowsForPeriod("2026-05"),
     priority: COMPLETE_PRIORITY,
   },
   "2026-06": {
-    stats: { organizationCount: 24, completeSubmissions: 15, needsFollowUp: 0, openFlags: 0 },
+    stats: snapshotStats("2026-06"),
     completeNote: "15 Training Providers submitted",
     followUpNote: "No follow-up required",
     panelTitle: "June submission status",
     panelSubtitle: "Third Thursday due date: June 18, 2026",
     pageSubtitle: "A clear view of this month’s reporting readiness.",
     impact: monthlyImpact("8 days", "2 days", "31%", "68%", "6 days saved", "+37 points"),
-    rows: allCompleteRows(),
+    rows: rowsForPeriod("2026-06"),
     priority: COMPLETE_PRIORITY,
   },
   "2026-07": {
-    stats: { organizationCount: 24, completeSubmissions: 15, needsFollowUp: 0, openFlags: 0 },
+    stats: snapshotStats("2026-07"),
     completeNote: "15 Training Providers submitted",
     followUpNote: "No follow-up required",
     panelTitle: "July submission status",
     panelSubtitle: "Third Thursday due date: July 16, 2026",
     pageSubtitle: "A clear view of this month’s reporting readiness.",
     impact: monthlyImpact("10 days", "3 days", "22%", "48%", "7 days saved", "+26 points"),
-    rows: allCompleteRows(),
+    rows: rowsForPeriod("2026-07"),
     priority: COMPLETE_PRIORITY,
   },
   "2026-08": {
-    stats: { organizationCount: 24, completeSubmissions: 15, needsFollowUp: 0, openFlags: 0 },
+    stats: snapshotStats("2026-08"),
     completeNote: "15 Training Providers submitted",
     followUpNote: "No follow-up required",
     panelTitle: "August submission status",
     panelSubtitle: "Third Thursday due date: August 20, 2026",
     pageSubtitle: "A clear view of this month’s reporting readiness.",
     impact: monthlyImpact("8 days", "2 days", "29%", "61%", "6 days saved", "+32 points"),
-    rows: allCompleteRows(),
+    rows: rowsForPeriod("2026-08"),
     priority: COMPLETE_PRIORITY,
   },
   "2026-09": {
-    stats: { organizationCount: 24, completeSubmissions: 2, needsFollowUp: 7, openFlags: 4 },
-    completeNote: "2 submitted early",
-    followUpNote: "3 late · 4 incomplete",
+    stats: snapshotStats("2026-09"),
+    completeNote: "5 Training Providers submitted",
+    followUpNote: "3 late · 2 incomplete",
     panelTitle: "September submission status",
     panelSubtitle: "Third Thursday due date: September 17, 2026",
     pageSubtitle: "A clear view of this month’s reporting readiness.",
     impact: monthlyImpact("8 days", "1 day", "35%", "75%", "7 days saved", "+40 points"),
-    rows: [
-      ["Missing/flagged", -2, -2],
-      ["Complete", -5, -5],
-      ["Not started", null, null],
-      ["Complete", 0, 0],
-      ["In review", -1, 3],
-      ["Awaiting review", 1, 1],
-      ["Complete", -7, -7],
-      ["Not started", null, null],
-      ["Complete", -2, -2],
-      ["In review", 2, 2],
-      ["Awaiting review", 0, 4],
-      ["Missing/flagged", -3, -1],
-      ["Complete", -6, -6],
-      ["Not started", null, null],
-      ["In review", 3, 3],
-    ],
+    rows: rowsForPeriod("2026-09"),
     priority: [
       { icon: "!", title: "Completion total needs verification", text: "Piedmont Community College · reported 12, records show 10" },
       { icon: "×", title: "Missing completion date", text: "Jordan Lewis · participant record" },
@@ -176,14 +207,14 @@ const PERIOD_VIEWS: Record<string, PeriodDashboard> = {
     ],
   },
   "2026-q2": {
-    stats: { organizationCount: 24, completeSubmissions: 15, needsFollowUp: 0, openFlags: 0 },
+    stats: snapshotStats("2026-q2"),
     completeNote: "15 Training Providers submitted",
     followUpNote: "No follow-up required",
     panelTitle: "Q2 submission status",
     panelSubtitle: "Reporting window: April – June 2026",
     pageSubtitle: "A clear view of this quarter’s reporting readiness.",
     impact: quarterlyImpact("14 days", "3 days", "41%", "69%"),
-    rows: allCompleteRows(),
+    rows: rowsForPeriod("2026-q2"),
     priority: [
       { icon: "✓", title: "Q2 is complete", text: "April, May, and June packets are approved for every subawardee" },
       { icon: "✓", title: "Quarterly draft is ready", text: "Three-month totals and narratives can be assembled without gaps" },
@@ -191,30 +222,14 @@ const PERIOD_VIEWS: Record<string, PeriodDashboard> = {
     ],
   },
   "2026-q3": {
-    stats: { organizationCount: 24, completeSubmissions: 9, needsFollowUp: 7, openFlags: 4 },
+    stats: snapshotStats("2026-q3"),
     completeNote: "Mid-to-late quarter",
-    followUpNote: "3 late · 4 incomplete",
+    followUpNote: "3 late · 2 incomplete",
     panelTitle: "Q3 submission status",
     panelSubtitle: "Reporting window: July – September 2026",
     pageSubtitle: "A clear view of this quarter’s reporting readiness.",
     impact: quarterlyImpact("13 days", "2 days", "38%", "66%"),
-    rows: [
-      ["Missing/flagged", -15, -15],
-      ["Complete", -18, -18],
-      ["Not started", null, null],
-      ["Complete", -13, -13],
-      ["In review", -14, -10],
-      ["Awaiting review", -12, -12],
-      ["Complete", -20, -20],
-      ["Not started", null, null],
-      ["Complete", -16, -16],
-      ["In review", -11, -11],
-      ["Awaiting review", -13, -9],
-      ["Missing/flagged", -17, -14],
-      ["Complete", -19, -19],
-      ["Not started", null, null],
-      ["In review", -10, -10],
-    ],
+    rows: rowsForPeriod("2026-q3"),
     priority: [
       { icon: "!", title: "September file is holding the quarter", text: "Central Carolina Skills · not submitted" },
       { icon: "!", title: "Q3 completion total needs verification", text: "Piedmont Community College · Sep variance" },

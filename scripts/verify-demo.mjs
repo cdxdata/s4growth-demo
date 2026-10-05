@@ -11,7 +11,7 @@ const vite = await createServer({
 });
 
 try {
-  const [{ assembleQuarter }, periods, submissions, eda, notifications, reportMod, reviewModel] = await Promise.all([
+  const [{ assembleQuarter, assembleQuarterScope, recordsForWorkbook }, periods, submissions, eda, notifications, reportMod, reviewModel, scope] = await Promise.all([
     vite.ssrLoadModule("/src/lib/quarterAssembler.ts"),
     vite.ssrLoadModule("/src/constants/periods.ts"),
     vite.ssrLoadModule("/src/store/submissionsSlice.ts"),
@@ -19,6 +19,7 @@ try {
     vite.ssrLoadModule("/src/adapters/notifications.ts"),
     vite.ssrLoadModule("/src/lib/quarterReport.ts"),
     vite.ssrLoadModule("/src/lib/reviewModel.ts"),
+    vite.ssrLoadModule("/src/lib/providerScope.ts"),
   ]);
 
   const initial = submissions.submissionsReducer(undefined, { type: "verification/init" });
@@ -58,6 +59,32 @@ try {
   assert.ok(Number(enrolledField?.value) >= draft.enrolled, "Quarterly admissions must include every provider packet.");
   assert.ok(Number(recruitedField?.value) > 0, "Admissions counts must sum the three monthly packets.");
   assert.ok(report.pages[11].narrative.includes("Enrollment") || report.pages[11].narrative.includes("Achievements"));
+
+  assert.equal(scope.resolveProviderId({ role: "training-provider", entityId: "tp-3", organizationName: "Piedmont Community College" }), 3);
+  assert.equal(scope.resolveProviderId({ role: "training-provider", entityId: "tp-x", organizationName: "Central Carolina Skills" }), 3);
+  assert.equal(scope.resolveProviderId({ role: "project-manager", entityId: "pm-1", organizationName: "NC A&T Project Office" }), null);
+  assert.equal(scope.resolveProviderId(null), null);
+  assert.equal(scope.parseProviderRouteId(undefined), null);
+  assert.equal(scope.parseProviderRouteId("1"), 1);
+  assert.equal(scope.parseProviderRouteId("0"), null);
+  assert.equal(submissions.getPeriodSubmission(initial, "2026-09").eda.trainingProvider, "");
+  assert.equal(submissions.getPeriodSubmission(initial, "2026-09", null).eda.trainingProvider, "");
+  assert.equal(submissions.getPeriodSubmission(initial, "2026-09", 1).eda.trainingProvider, "Piedmont Community College");
+  const skippedWrite = submissions.submissionsReducer(
+    initial,
+    submissions.updateTechnical({
+      periodId: "2026-09",
+      patch: { challenges: [{ keyword: "Leak", detail: "Should not land on Piedmont" }] },
+    }),
+  );
+  assert.deepEqual(
+    skippedWrite.byProvider["1"]["2026-09"].technical.challenges,
+    initial.byProvider["1"]["2026-09"].technical.challenges,
+  );
+  const networkDraft = assembleQuarterScope(quarter, initial.byProvider, null);
+  assert.ok(networkDraft.enrolled > draft.enrolled, "PM quarterly totals must include every provider, not Piedmont only.");
+  assert.equal(assembleQuarterScope(quarter, initial.byProvider, 3).enrolled, assembleQuarter(quarter, initial.byProvider["3"]).enrolled);
+  assert.ok(Object.keys(recordsForWorkbook(initial.byProvider, null)).length > Object.keys(initial.byProvider["1"]).length);
 
   const edited = submissions.submissionsReducer(
     initial,
@@ -178,7 +205,207 @@ try {
   assert.equal(withOutbox.mail[0].id, notification.id);
   assert.ok(withOutbox.mail.length >= 1);
 
-  console.log("Demo scope verification passed: aggregation, status, XLSX, and notification adapter.");
+  const [
+    cardStatusesMod,
+    dashboardPeriod,
+    dashboardStatus,
+    demoStatuses,
+    docs,
+    tech,
+    edaRecords,
+    directory,
+    demoReset,
+    persist,
+    demoSeed,
+    authTypes,
+  ] = await Promise.all([
+    vite.ssrLoadModule("/src/lib/cardStatuses.ts"),
+    vite.ssrLoadModule("/src/api/dashboardByPeriod.ts"),
+    vite.ssrLoadModule("/src/lib/dashboardStatus.ts"),
+    vite.ssrLoadModule("/src/lib/demoStatuses.ts"),
+    vite.ssrLoadModule("/src/lib/submissionDocuments.ts"),
+    vite.ssrLoadModule("/src/lib/technicalReport.ts"),
+    vite.ssrLoadModule("/src/lib/edaProgramRecords.ts"),
+    vite.ssrLoadModule("/src/api/directoryDb.ts"),
+    vite.ssrLoadModule("/src/lib/demoReset.ts"),
+    vite.ssrLoadModule("/src/lib/submissionsPersist.ts"),
+    vite.ssrLoadModule("/src/lib/demoSeed.ts"),
+    vite.ssrLoadModule("/src/types/auth.ts"),
+  ]);
+
+  assert.deepEqual(cardStatusesMod.cardStatuses("Submitted", "Missing/flagged"), {
+    status: "Action Needed",
+    reviewStatus: "Missing/flagged",
+  });
+  assert.deepEqual(cardStatusesMod.cardStatuses("Submitted", "Complete"), {
+    status: "Approved",
+    reviewStatus: null,
+  });
+  assert.deepEqual(cardStatusesMod.cardStatuses("Submitted", "In review"), {
+    status: "Submitted",
+    reviewStatus: "In review",
+  });
+  assert.deepEqual(cardStatusesMod.cardStatuses("Submitted", "Awaiting review"), {
+    status: "Submitted",
+    reviewStatus: "Awaiting review",
+  });
+  assert.deepEqual(cardStatusesMod.cardStatuses("Action Needed", "Not started"), {
+    status: "Action Needed",
+    reviewStatus: null,
+  });
+
+  const septemberRows = dashboardPeriod.providersForPeriod("2026-09");
+  for (const row of septemberRows) {
+    assert.equal(
+      row.submissionStatus,
+      demoStatuses.demoStatusForPeriod("2026-09", row.id),
+      `Dashboard September status for provider ${row.id} must match the seed map.`,
+    );
+  }
+  const overlaid = dashboardStatus.overlayStoredStatus({
+    submissionStatus: septemberRows.find((row) => row.id === 3).submissionStatus,
+    completedOn: null,
+    statusChangedOn: null,
+    stored: { status: "Awaiting review", completedOn: null, statusChangedOn: "2026-09-21" },
+  });
+  assert.equal(overlaid.submissionStatus, "Awaiting review");
+  const seedCounts = dashboardStatus.dashboardStatusCounts(
+    septemberRows.map((row) => row.submissionStatus),
+  );
+  const liveCounts = dashboardStatus.dashboardStatusCounts(
+    septemberRows.map((row) =>
+      row.id === 3 ? overlaid.submissionStatus : row.submissionStatus,
+    ),
+  );
+  assert.equal(seedCounts.completeCount, 5);
+  assert.equal(seedCounts.needAttentionCount, 5);
+  assert.equal(seedCounts.followUpCount, 5);
+  assert.equal(liveCounts.notStarted, seedCounts.notStarted - 1);
+  assert.equal(liveCounts.awaitingReview, seedCounts.awaitingReview + 1);
+
+  const blankTechnical = tech.defaultIntakeDraft();
+  assert.equal(docs.technicalFillState(blankTechnical), "blank");
+  assert.equal(docs.isTechnicalValid(blankTechnical), true);
+  assert.equal(docs.canSubmitMonthlyPackage(initial.byProvider["3"]["2026-09"]), false);
+
+  const incompleteCompletion = {
+    ...edaRecords.emptyCompletion("Piedmont Community College", "IT Support"),
+    completed: "",
+    completedOnTime: "",
+    completedNotContinuous: "",
+  };
+  assert.equal(docs.isCompletionProgramValid(incompleteCompletion), false);
+  assert.equal(docs.isCompletionProgramValid({ ...incompleteCompletion, skipNoCompletions: true }), true);
+  const incompleteNonCompletion = {
+    ...edaRecords.emptyNonCompletion("Piedmont Community College", "IT Support"),
+    reasons: { ...edaRecords.emptyReasons(), technicalRequirements: "" },
+  };
+  assert.equal(docs.isNonCompletionProgramValid(incompleteNonCompletion), false);
+  assert.equal(docs.isNonCompletionProgramValid({ ...incompleteNonCompletion, skipReasons: true }), true);
+  assert.equal(
+    docs.isTrainingProviderSegmentValid({ sectoralPartnership: "", trainingProvider: "", trainingPrograms: [""] }),
+    false,
+  );
+  assert.equal(
+    docs.isTrainingProviderSegmentValid({
+      sectoralPartnership: "Capital Area Healthcare Partnership",
+      trainingProvider: "Central Carolina Skills",
+      trainingPrograms: ["IT Support"],
+    }),
+    true,
+  );
+
+  const filledEda = initial.byProvider["4"]["2026-09"].eda;
+  const firstAttempt = submissions.submissionsReducer(
+    initial,
+    submissions.updateEda({ providerId: 3, periodId: "2026-09", patch: filledEda }),
+  );
+  const firstRecord = submissions.getPeriodSubmission(firstAttempt, "2026-09", 3);
+  assert.equal(docs.technicalFillState(firstRecord.technical), "blank");
+  assert.equal(docs.canSubmitMonthlyPackage(firstRecord), true);
+  const firstSubmitted = submissions.submissionsReducer(
+    firstAttempt,
+    submissions.submitMonthlyPackage({ providerId: 3, periodId: "2026-09" }),
+  );
+  const firstQueued = submissions.submissionsReducer(
+    firstSubmitted,
+    submissions.setProviderPeriodStatus({
+      providerId: 3,
+      periodId: "2026-09",
+      status: "Awaiting review",
+    }),
+  );
+  assert.equal(firstQueued.byProvider["3"]["2026-09"].status, "Submitted");
+  assert.equal(firstQueued.providerStatus["2026-09"]["3"].status, "Awaiting review");
+
+  const flagged = initial.byProvider["1"]["2026-09"];
+  assert.equal(flagged.review["technical-report"].fieldMarks["technical.challenges"], "bad");
+  assert.equal(flagged.review["eda-survey"].sections.admissions.fieldMarks["eda.admissions.0"], "bad");
+  const unmarkedTechnical = submissions.submissionsReducer(
+    initial,
+    submissions.updateTechnical({
+      providerId: 1,
+      periodId: "2026-09",
+      patch: {
+        challenges: [{ keyword: "Enrollment", detail: "Evening sections recovered after the plant returned to first shift." }],
+      },
+    }),
+  );
+  const afterTechnical = unmarkedTechnical.byProvider["1"]["2026-09"];
+  assert.ok(reviewModel.changedReviewFieldIds(afterTechnical).includes("technical.challenges"));
+  assert.equal(afterTechnical.review["technical-report"].fieldMarks["technical.challenges"], undefined);
+  assert.equal(afterTechnical.review["technical-report"].fieldMarks["technical.plans"], "good");
+  const unmarkedEda = reviewModel.unmarkChangedFields(afterTechnical.review, ["eda.admissions.0"]);
+  assert.equal(unmarkedEda["eda-survey"].sections.admissions.fieldMarks["eda.admissions.0"], undefined);
+
+  directory.directoryDb.resetToSeed();
+  const atCapacity = directory.directoryDb.addOrgContact("tp-12", "Extra Person", "extra.person@s4g.test");
+  assert.equal("error" in atCapacity, true);
+  assert.match(atCapacity.error, new RegExp(String(authTypes.MAX_ORG_CONTACTS)));
+  const added = directory.directoryDb.addOrgContact("tp-2", "Second User", "second.user@s4g.test");
+  assert.equal("error" in added, false);
+  directory.directoryDb.resetToSeed();
+  assert.equal(directory.directoryDb.getEntity("tp-2").orgContacts.length, 1);
+
+  const mem = {
+    data: Object.create(null),
+    setItem(key, value) {
+      this.data[key] = String(value);
+    },
+    getItem(key) {
+      return Object.prototype.hasOwnProperty.call(this.data, key) ? this.data[key] : null;
+    },
+    removeItem(key) {
+      delete this.data[key];
+    },
+  };
+  persist.setSubmissionsPersistStorage(mem);
+  persist.cancelSubmissionsPersist();
+  const seeded = demoSeed.createDemoSubmissionsState();
+  persist.persistAfterSubmissionsAction("submissions/updateEda", seeded);
+  assert.equal(mem.getItem(demoSeed.SUBMISSIONS_STORAGE_KEY), null);
+  persist.flushSubmissionsPersist();
+  assert.equal(JSON.parse(mem.getItem(demoSeed.SUBMISSIONS_STORAGE_KEY)).version, demoSeed.SUBMISSIONS_STORAGE_VERSION);
+  mem.removeItem(demoSeed.SUBMISSIONS_STORAGE_KEY);
+  persist.persistAfterSubmissionsAction("submissions/submitMonthlyPackage", seeded);
+  assert.ok(mem.getItem(demoSeed.SUBMISSIONS_STORAGE_KEY));
+  persist.setSubmissionsPersistStorage({
+    setItem() {
+      throw new Error("QuotaExceededError");
+    },
+  });
+  persist.persistSubmissionsNow(seeded);
+
+  persist.setSubmissionsPersistStorage(mem);
+  directory.directoryDb.addOrgContact("tp-2", "Temp User", "temp.user@s4g.test");
+  demoReset.resetDemoWorkspaceData();
+  assert.equal(directory.directoryDb.getEntity("tp-2").orgContacts.length, 1);
+  assert.ok(demoReset.RESET_PRESERVES_KEYS.includes("s4g-session"));
+  assert.equal(demoReset.RESET_CLEARS_KEYS.includes("s4g-session"), false);
+
+  console.log("Demo scope verification passed: aggregation, status, XLSX, notification adapter, and coverage checks.");
+  persist.cancelSubmissionsPersist();
+  persist.setSubmissionsPersistStorage(undefined);
 } finally {
   await vite.close();
 }

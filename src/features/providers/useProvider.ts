@@ -5,8 +5,9 @@ import { queryKeys } from "@/api/queryKeys";
 import { useAppSelector } from "@/app/hooks";
 import { MONTH_NAMES, getPeriodById } from "@/constants/periods";
 import { overviewDocuments, type OverviewDocument } from "@/lib/overviewDocuments";
+import { parseProviderRouteId } from "@/lib/providerScope";
 import { getPeriodSubmission, getProviderPeriodStatus } from "@/store/submissionsSlice";
-import type { User } from "@/types/auth";
+import type { OrgContact } from "@/types/auth";
 import type { ActivityEvent, Provider } from "@/types/domain";
 
 export type ProviderTab = "overview" | "monthly";
@@ -14,11 +15,11 @@ export type ProviderTab = "overview" | "monthly";
 export type ProviderSummary = {
   isLoading: boolean;
   error: Error | null;
-  providerId: number;
+  providerId: number | null;
   provider: Provider | null;
   tab: ProviderTab;
   documents: OverviewDocument[];
-  users: User[];
+  orgContacts: OrgContact[];
   activity: ActivityEvent[];
   openGaps: number;
   completed: boolean;
@@ -35,19 +36,25 @@ export type ProviderSummary = {
 
 export function useProvider(): ProviderSummary {
   const { id } = useParams();
-  const providerId = Number(id ?? 1);
+  const providerId = parseProviderRouteId(id);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const tab: ProviderTab = searchParams.get("tab") === "monthly" ? "monthly" : "overview";
   const query = useQuery({
-    queryKey: queryKeys.provider(providerId),
-    queryFn: () => reportingApi.getProvider(providerId),
-    enabled: Number.isFinite(providerId),
+    queryKey: queryKeys.provider(providerId ?? 0),
+    queryFn: () => {
+      if (providerId == null) throw new Error("Missing subawardee");
+      return reportingApi.getProvider(providerId);
+    },
+    enabled: providerId != null,
   });
-  const usersQuery = useQuery({
-    queryKey: queryKeys.providerUsers(providerId),
-    queryFn: () => reportingApi.getProviderUsers(providerId),
-    enabled: Number.isFinite(providerId),
+  const orgContactsQuery = useQuery({
+    queryKey: queryKeys.providerOrgContacts(providerId ?? 0),
+    queryFn: () => {
+      if (providerId == null) throw new Error("Missing subawardee");
+      return reportingApi.getProviderOrgContacts(providerId);
+    },
+    enabled: providerId != null,
   });
 
   const periodId = useAppSelector((state) => state.workspace.selectedPeriodId);
@@ -66,13 +73,13 @@ export function useProvider(): ProviderSummary {
   const completed = provider?.submissionStatus === "Complete";
 
   return {
-    isLoading: (query.isLoading || usersQuery.isLoading) && !detail,
+    isLoading: (query.isLoading || orgContactsQuery.isLoading) && !detail,
     error: query.error instanceof Error ? query.error : query.error ? new Error("Failed to load subawardee") : null,
     providerId,
     provider,
     tab,
     documents: overviewDocuments(record, provider?.submissionStatus ?? "Not started"),
-    users: usersQuery.data ?? [],
+    orgContacts: orgContactsQuery.data ?? [],
     activity: detail?.activity ?? [],
     openGaps: detail?.openGaps ?? 0,
     completed,

@@ -1,14 +1,14 @@
-import { createDirectoryEntities, createDirectoryUsers } from "@/constants/directorySeed";
+import { createDirectoryEntities, createDirectoryOrgContacts } from "@/constants/directorySeed";
 import { TRAINING_PROVIDERS } from "@/constants/organizations";
 import type {
   AppRole,
   AuthIdentity,
   DirectoryEntity,
   MagicLinkPreview,
+  OrgContact,
   RoleDirectoryStats,
-  User,
 } from "@/types/auth";
-import { MAX_USERS } from "@/types/auth";
+import { MAX_ORG_CONTACTS, normalizeAuthKind } from "@/types/auth";
 import type { SubmissionStatus } from "@/types/domain";
 
 type MagicLinkRecord = MagicLinkPreview & {
@@ -18,7 +18,7 @@ type MagicLinkRecord = MagicLinkPreview & {
 
 type DirectoryState = {
   entities: DirectoryEntity[];
-  users: User[];
+  orgContacts: OrgContact[];
   magicLinks: MagicLinkRecord[];
   nextEntitySeq: number;
 };
@@ -37,7 +37,7 @@ const DIRECTORY_VERSION = 1;
 function createInitialState(): DirectoryState {
   return {
     entities: createDirectoryEntities(),
-    users: createDirectoryUsers(),
+    orgContacts: createDirectoryOrgContacts(),
     magicLinks: [],
     nextEntitySeq: 100,
   };
@@ -59,8 +59,9 @@ function loadDirectory(): DirectoryState {
     }
     const parsed = JSON.parse(raw) as DirectoryState & {
       version?: number;
-      representatives?: User[];
-      magicLinks?: Array<MagicLinkRecord & { kind: AuthIdentity["kind"] | "representative" }>;
+      users?: OrgContact[];
+      representatives?: OrgContact[];
+      magicLinks?: Array<MagicLinkRecord & { kind?: string }>;
     };
     if (parsed.version !== DIRECTORY_VERSION || !parsed.entities) {
       persistDirectory(seeded);
@@ -68,14 +69,16 @@ function loadDirectory(): DirectoryState {
     }
     const loaded: DirectoryState = {
       entities: parsed.entities,
-      users: parsed.users ?? parsed.representatives ?? [],
-      magicLinks: (parsed.magicLinks ?? []).map((link) => ({
-        ...link,
-        kind: (link.kind as string) === "representative" ? "user" : link.kind,
-      })),
+      orgContacts: parsed.orgContacts ?? parsed.users ?? parsed.representatives ?? [],
+      magicLinks: (parsed.magicLinks ?? [])
+        .map((link) => {
+          const kind = normalizeAuthKind(link.kind);
+          return kind ? { ...link, kind } : null;
+        })
+        .filter((link): link is MagicLinkRecord => Boolean(link)),
       nextEntitySeq: parsed.nextEntitySeq ?? 100,
     };
-    if (!parsed.users && parsed.representatives) persistDirectory(loaded);
+    if (!parsed.orgContacts) persistDirectory(loaded);
     return loaded;
   } catch {
     return seeded;
@@ -104,14 +107,14 @@ function toIdentityFromEntity(entity: DirectoryEntity): AuthIdentity {
   };
 }
 
-function toIdentityFromUser(user: User, entity: DirectoryEntity): AuthIdentity {
+function toIdentityFromOrgContact(contact: OrgContact, entity: DirectoryEntity): AuthIdentity {
   return {
-    kind: "user",
-    id: user.id,
+    kind: "orgContact",
+    id: contact.id,
     entityId: entity.id,
     role: entity.role,
-    name: user.name,
-    email: user.email,
+    name: contact.name,
+    email: contact.email,
     organizationName: entity.name,
   };
 }
@@ -120,21 +123,21 @@ function findIdentityByEmail(email: string): AuthIdentity | null {
   const normalized = normalizeEmail(email);
   const entity = state.entities.find((item) => item.email === normalized);
   if (entity) return toIdentityFromEntity(entity);
-  const user = state.users.find((item) => item.email === normalized);
-  if (!user) return null;
-  const parent = entityById(user.entityId);
-  return parent ? toIdentityFromUser(user, parent) : null;
+  const contact = state.orgContacts.find((item) => item.email === normalized);
+  if (!contact) return null;
+  const parent = entityById(contact.entityId);
+  return parent ? toIdentityFromOrgContact(contact, parent) : null;
 }
 
 function emailTaken(email: string, exceptId?: string): boolean {
   const normalized = normalizeEmail(email);
   const entityHit = state.entities.some((item) => item.email === normalized && item.id !== exceptId);
-  const userHit = state.users.some((item) => item.email === normalized && item.id !== exceptId);
-  return entityHit || userHit;
+  const contactHit = state.orgContacts.some((item) => item.email === normalized && item.id !== exceptId);
+  return entityHit || contactHit;
 }
 
-function usersFor(entityId: string): User[] {
-  return state.users.filter((item) => item.entityId === entityId);
+function orgContactsFor(entityId: string): OrgContact[] {
+  return state.orgContacts.filter((item) => item.entityId === entityId);
 }
 
 export const directoryDb = {
@@ -173,9 +176,9 @@ export const directoryDb = {
             return entity ? toIdentityFromEntity(entity) : null;
           })()
         : (() => {
-            const user = state.users.find((item) => item.id === record.identityId);
-            const parent = user ? entityById(user.entityId) : undefined;
-            return user && parent ? toIdentityFromUser(user, parent) : null;
+            const contact = state.orgContacts.find((item) => item.id === record.identityId);
+            const parent = contact ? entityById(contact.entityId) : undefined;
+            return contact && parent ? toIdentityFromOrgContact(contact, parent) : null;
           })();
     if (!identity) return null;
     return clone(identity);
@@ -186,9 +189,9 @@ export const directoryDb = {
       const entity = entityById(id);
       return entity ? clone(toIdentityFromEntity(entity)) : null;
     }
-    const user = state.users.find((item) => item.id === id);
-    const parent = user ? entityById(user.entityId) : undefined;
-    return user && parent ? clone(toIdentityFromUser(user, parent)) : null;
+    const contact = state.orgContacts.find((item) => item.id === id);
+    const parent = contact ? entityById(contact.entityId) : undefined;
+    return contact && parent ? clone(toIdentityFromOrgContact(contact, parent)) : null;
   },
 
   getStats(): RoleDirectoryStats[] {
@@ -199,24 +202,24 @@ export const directoryDb = {
         return {
           role,
           entityCount: entities.length,
-          userCount: state.users.filter((item) => ids.has(item.entityId)).length,
+          orgContactCount: state.orgContacts.filter((item) => ids.has(item.entityId)).length,
         };
       },
     );
   },
 
-  listEntities(role: AppRole): Array<DirectoryEntity & { users: User[] }> {
+  listEntities(role: AppRole): Array<DirectoryEntity & { orgContacts: OrgContact[] }> {
     return clone(
       state.entities
         .filter((item) => item.role === role)
-        .map((entity) => ({ ...entity, users: usersFor(entity.id) })),
+        .map((entity) => ({ ...entity, orgContacts: orgContactsFor(entity.id) })),
     );
   },
 
-  getEntity(id: string): (DirectoryEntity & { users: User[] }) | null {
+  getEntity(id: string): (DirectoryEntity & { orgContacts: OrgContact[] }) | null {
     const entity = entityById(id);
     if (!entity) return null;
-    return clone({ ...entity, users: usersFor(entity.id) });
+    return clone({ ...entity, orgContacts: orgContactsFor(entity.id) });
   },
 
   addEntity(role: AppRole, name: string, email: string): DirectoryEntity | { error: string } {
@@ -247,39 +250,39 @@ export const directoryDb = {
       return { error: "The workspace must keep at least one admin." };
     }
     state.entities = state.entities.filter((item) => item.id !== id);
-    state.users = state.users.filter((item) => item.entityId !== id);
+    state.orgContacts = state.orgContacts.filter((item) => item.entityId !== id);
     persistDirectory(state);
     return { ok: true };
   },
 
-  addUser(entityId: string, name: string, email: string): User | { error: string } {
+  addOrgContact(entityId: string, name: string, email: string): OrgContact | { error: string } {
     const entity = entityById(entityId);
     if (!entity) return { error: "That organization was not found." };
-    if (entity.role === "admin") return { error: "Admin accounts cannot have users." };
-    const current = usersFor(entityId);
-    if (current.length >= MAX_USERS) {
-      return { error: `An organization can have up to ${MAX_USERS} users.` };
+    if (entity.role === "admin") return { error: "Admin accounts cannot have org contacts." };
+    const current = orgContactsFor(entityId);
+    if (current.length >= MAX_ORG_CONTACTS) {
+      return { error: `An organization can have up to ${MAX_ORG_CONTACTS} org contacts.` };
     }
     const trimmedName = name.trim();
     const normalized = normalizeEmail(email);
     if (!trimmedName || !normalized) return { error: "Name and email are required." };
     if (!normalized.includes("@")) return { error: "Enter a valid email address." };
     if (emailTaken(normalized)) return { error: "That email is already in use." };
-    const user: User = {
-      id: `${entityId}-u${Date.now().toString(36)}`,
+    const contact: OrgContact = {
+      id: `${entityId}-c${Date.now().toString(36)}`,
       entityId,
       name: trimmedName,
       email: normalized,
     };
-    state.users.push(user);
+    state.orgContacts.push(contact);
     persistDirectory(state);
-    return clone(user);
+    return clone(contact);
   },
 
-  removeUser(id: string): { error: string } | { ok: true } {
-    const exists = state.users.some((item) => item.id === id);
-    if (!exists) return { error: "That user was not found." };
-    state.users = state.users.filter((item) => item.id !== id);
+  removeOrgContact(id: string): { error: string } | { ok: true } {
+    const exists = state.orgContacts.some((item) => item.id === id);
+    if (!exists) return { error: "That org contact was not found." };
+    state.orgContacts = state.orgContacts.filter((item) => item.id !== id);
     persistDirectory(state);
     return { ok: true };
   },
@@ -328,10 +331,10 @@ export const directoryDb = {
     });
   },
 
-  getUsersForProvider(providerId: number): User[] {
+  getOrgContactsForProvider(providerId: number): OrgContact[] {
     const entity = state.entities.find((item) => item.role === "training-provider" && item.orgId === providerId);
     if (!entity) return [];
-    return clone(usersFor(entity.id));
+    return clone(orgContactsFor(entity.id));
   },
 
   getProviderContact(providerId: number): { name: string; email: string } | null {
@@ -357,7 +360,7 @@ export const directoryDb = {
     const emails = new Set<string>();
     if (entity?.email) emails.add(entity.email);
     if (entity) {
-      for (const user of usersFor(entity.id)) emails.add(user.email);
+      for (const contact of orgContactsFor(entity.id)) emails.add(contact.email);
     }
     if (backbone?.email) emails.add(backbone.email);
     return { providerName, recipients: Array.from(emails) };
